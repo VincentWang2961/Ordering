@@ -168,6 +168,7 @@ function CustomerHome() {
   }
 
   return (
+    <>
     <main className="min-h-screen bg-[oklch(0.97_0.025_77)] pb-28 text-stone-950">
       <header className="sticky top-0 z-30 border-b border-amber-900/10 bg-[oklch(0.99_0.018_83)]/95 backdrop-blur">
         <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
@@ -603,6 +604,13 @@ function CustomerHome() {
         </span>
       </button>
     </main>
+
+      <footer className="bg-[oklch(0.97_0.025_77)] pb-[env(safe-area-inset-bottom)]">
+        <div className="mx-auto max-w-7xl px-4 pb-6 pt-3 text-center text-xs text-stone-500 sm:px-6 lg:px-8">
+          &copy; {new Date().getFullYear()} Ordering System
+        </div>
+      </footer>
+    </>
   );
 }
 

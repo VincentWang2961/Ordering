@@ -25,14 +25,17 @@ html {
   background-color: oklch(0.99 0.018 83);
 }
 
-/* Body is transparent — page-specific <main> backgrounds show through.
-   Safe area padding keeps content clear of notch/home indicator. */
+/* Body uses the same background as the nav bar — this shows in the
+   safe-area gap between the notch and the sticky nav. Each page's
+   <main> has its own background that overlays the content area.
+   The bottom safe area is handled per-page with explicit spacers
+   (matching the page's background colour) so nothing goes black. */
 body {
-  background: transparent;
+  background-color: oklch(0.99 0.018 83);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   padding-top: env(safe-area-inset-top, 0px);
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* No bottom padding — per-page spacers handle this */
 }
