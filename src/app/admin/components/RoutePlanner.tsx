@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { Order } from "../../../data/types";
+import { updateOrderStatus } from "../../../data/store";
 import RouteMap from "./RouteMap";
 
 interface LatLng {
@@ -273,41 +274,127 @@ export default function RoutePlanner({
           </div>
 
           {/* Route order list */}
-          <div className="mt-6 space-y-2">
+          <div className="mt-6">
             <h3 className="text-sm font-semibold text-stone-700">
               {t("route.routeOrder")}
             </h3>
-            {routeResult.stops.map((stop, i) => (
-              <div
-                key={i}
-                className={`rounded-xl border p-4 ${
-                  i === 0
-                    ? "border-emerald-200 bg-emerald-50"
-                    : "border-stone-200 bg-white"
-                }`}
-              >
-                <div className="flex items-start gap-4">
-                  <span className="mt-0.5 text-xl font-bold text-stone-600">
-                    {STOP_ICONS[i] || `#${i}`}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-stone-950">
-                      {i === 0
-                        ? t("route.startFrom")
-                        : `${t("route.deliverTo")} #${stop.index}`}
-                    </p>
-                    <p className="mt-1 truncate text-sm text-stone-600">
-                      {stop.label}
-                    </p>
-                    {i > 0 && (
-                      <p className="mt-0.5 text-xs text-stone-500">
-                        {routeResult.orderSummary[i]}
-                      </p>
+            <div className="mt-3 space-y-3">
+              {routeResult.stops.map((stop, i) => {
+                // Find matching order from label: "#orderId — contact"
+                const orderMatch = acceptedOrders.find((o) =>
+                  stop.label.startsWith(`#${o.id}`)
+                );
+                return (
+                  <div
+                    key={i}
+                    className={`rounded-xl border p-4 ${
+                      i === 0
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-stone-200 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <span className="mt-0.5 text-xl font-bold text-stone-600">
+                        {STOP_ICONS[i] || `#${i}`}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-stone-950">
+                          {i === 0
+                            ? t("route.startFrom")
+                            : `${t("route.deliverTo")} #${orderMatch?.id || stop.index}`}
+                        </p>
+                        <p className="mt-0.5 text-sm text-stone-600">
+                          {stop.label}
+                        </p>
+
+                        {/* Customer info + items for delivery stops */}
+                        {i > 0 && orderMatch && (
+                          <div className="mt-2 space-y-1 border-t border-stone-100 pt-2 text-xs text-stone-600">
+                            <p>
+                              <span className="font-semibold text-stone-700">
+                                {t("menu.contact")}:
+                              </span>{" "}
+                              {orderMatch.contact}
+                            </p>
+                            <p className="truncate">
+                              <span className="font-semibold text-stone-700">
+                                {t("menu.address")}:
+                              </span>{" "}
+                              {orderMatch.address}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-stone-700">
+                                {t("order.items")}:
+                              </span>{" "}
+                              {orderMatch.items
+                                .map((item) => `${item.quantity}x ${item.name}`)
+                                .join(", ")}
+                            </p>
+                            {orderMatch.notes && (
+                              <p>
+                                <span className="font-semibold text-stone-700">
+                                  {t("menu.notes")}:
+                                </span>{" "}
+                                {orderMatch.notes}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Distance info */}
+                        {i > 0 && (
+                          <p className="mt-1 text-xs text-stone-400">
+                            {routeResult.orderSummary[i]}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action buttons for delivery stops */}
+                    {i > 0 && orderMatch && orderMatch.status === "accepted" && (
+                      <div className="mt-3 flex gap-2 border-t border-stone-100 pt-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateOrderStatus(orderMatch.id, "delivered");
+                            // Refresh: force re-render by recalculating
+                            calculateRoute();
+                          }}
+                          className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                        >
+                          {t("route.markDelivered")} ✓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateOrderStatus(orderMatch.id, "cancelled");
+                            calculateRoute();
+                          }}
+                          className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+                        >
+                          {t("route.markException")} ✗
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Show delivered/exception status */}
+                    {i > 0 && orderMatch && orderMatch.status !== "accepted" && (
+                      <div className="mt-3 border-t border-stone-100 pt-3">
+                        <span
+                          className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                            orderMatch.status === "delivered"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {t(`order.${orderMatch.status}`)}
+                        </span>
+                      </div>
                     )}
                   </div>
-                </div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

@@ -136,7 +136,9 @@
     "map": "地图预览",
     "openInMaps": "在 Google Maps 中打开导航",
     "navFromHere": "从我的位置出发导航",
-    "navFromRestaurant": "从餐厅出发导航"
+    "navFromRestaurant": "从餐厅出发导航",
+    "markDelivered": "✓ 已送达",
+    "markException": "✗ 异常"
   },
   "address": {
     "verifying": "正在验证地址",
@@ -144,6 +146,15 @@
     "notFound": "地址未找到，请输入有效地址。",
     "geoError": "无法验证地址，请重试。",
     "loadingMap": "地图加载中"
+  },
+  "kitchen": {
+    "title": "厨房",
+    "totalOrders": "个订单",
+    "totalItems": "件菜品待备餐",
+    "orders": "单",
+    "noOrders": "暂无需要备餐的订单。",
+    "printChecklist": "打印清单",
+    "printDetails": "打印详情"
   },
   "common": {
     "loading": "加载中...",
