@@ -169,8 +169,8 @@ function CustomerHome() {
 
   return (
     <>
-    <main className="min-h-screen bg-[oklch(0.97_0.025_77)] pb-28 text-stone-950">
-      <header className="sticky top-0 z-30 border-b border-amber-900/10 bg-[oklch(0.99_0.018_83)]/95 backdrop-blur">
+    <main className="min-h-screen bg-[#f0e8dc] pb-28 text-stone-950">
+      <header className="sticky top-0 z-30 border-b border-amber-900/10 bg-[#faf5ed]/95 backdrop-blur">
         <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Link href="/" className="text-xl font-semibold text-amber-950">
             {settingsName(settings, locale)}
@@ -591,7 +591,7 @@ function CustomerHome() {
       <button
         type="button"
         onClick={() => setCartOpen(true)}
-        className="fixed inset-x-4 bottom-[env(safe-area-inset-bottom)] z-30 mx-auto flex max-w-3xl items-center justify-between rounded-2xl bg-stone-950 px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-left text-white shadow-2xl shadow-stone-950/25"
+        className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-3xl items-center justify-between rounded-2xl bg-stone-950 px-5 py-4 text-left text-white shadow-2xl shadow-stone-950/25"
       >
         <span>
           <span className="block text-sm text-amber-100">
@@ -605,7 +605,7 @@ function CustomerHome() {
       </button>
     </main>
 
-      <footer className="bg-[oklch(0.97_0.025_77)] pb-[env(safe-area-inset-bottom)]">
+      <footer className="bg-[#f0e8dc] pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto max-w-7xl px-4 pb-6 pt-3 text-center text-xs text-stone-500 sm:px-6 lg:px-8">
           &copy; {new Date().getFullYear()} Ordering System
         </div>
