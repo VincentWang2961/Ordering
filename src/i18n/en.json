@@ -127,7 +127,12 @@
     "enableTracking": "Enable GPS tracking",
     "trackingActive": "GPS active",
     "stopNum": "Stop",
-    "map": "Map"
+    "map": "Map",
+    "gpsUnsupported": "Geolocation is not supported on this device.",
+    "gpsPermissionDenied": "Location access denied. Please allow location in your browser settings.",
+    "gpsUnavailable": "Location unavailable. Try moving outdoors or enabling Wi-Fi.",
+    "gpsTimeout": "Location request timed out. Try again.",
+    "gpsError": "Failed to get location."
   },
   "common": {
     "loading": "Loading...",
