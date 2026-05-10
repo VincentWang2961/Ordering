@@ -128,6 +128,13 @@
     "map": "地圖預覽",
     "openInMaps": "在 Google Maps 中打開導航"
   },
+  "address": {
+    "verifying": "正在驗證地址",
+    "verified": "地址已驗證通過",
+    "notFound": "地址未找到，請輸入有效地址。",
+    "geoError": "無法驗證地址，請重試。",
+    "loadingMap": "地圖載入中"
+  },
   "common": {
     "loading": "載入中...",
     "error": "出錯了",

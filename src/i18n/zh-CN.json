@@ -128,6 +128,13 @@
     "map": "地图预览",
     "openInMaps": "在 Google Maps 中打开导航"
   },
+  "address": {
+    "verifying": "正在验证地址",
+    "verified": "地址已验证通过",
+    "notFound": "地址未找到，请输入有效地址。",
+    "geoError": "无法验证地址，请重试。",
+    "loadingMap": "地图加载中"
+  },
   "common": {
     "loading": "加载中...",
     "error": "出错了",

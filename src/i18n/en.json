@@ -128,6 +128,13 @@
     "map": "Map Preview",
     "openInMaps": "Open in Google Maps Navigation"
   },
+  "address": {
+    "verifying": "Verifying address",
+    "verified": "Address confirmed",
+    "notFound": "Address not found. Please enter a valid address.",
+    "geoError": "Could not verify address. Please try again.",
+    "loadingMap": "Loading map"
+  },
   "common": {
     "loading": "Loading...",
     "error": "Something went wrong",
