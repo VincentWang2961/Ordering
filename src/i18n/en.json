@@ -123,6 +123,9 @@
     "deliverTo": "Deliver to",
     "showCoordinates": "Show coordinates",
     "demoMode": "Demo Mode (no API key)",
+    "loadingMap": "Loading map",
+    "stopNum": "Stop",
+    "map": "Map Preview",
     "openInMaps": "Open in Google Maps Navigation"
   },
   "common": {

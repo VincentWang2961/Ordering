@@ -123,6 +123,9 @@
     "deliverTo": "送达",
     "showCoordinates": "显示坐标",
     "demoMode": "演示模式（未设置 API key）",
+    "loadingMap": "地图加载中",
+    "stopNum": "站点",
+    "map": "地图预览",
     "openInMaps": "在 Google Maps 中打开导航"
   },
   "common": {
