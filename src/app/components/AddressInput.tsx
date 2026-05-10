@@ -46,7 +46,7 @@ export default function AddressInput({
     if (trimmed.length < 3) {
       setStatus("idle");
       setCoords(null);
-      onVerified(null);
+      onVerified(null, null);
       return;
     }
 
@@ -77,13 +77,13 @@ export default function AddressInput({
           setCoords(null);
           setStatus("invalid");
           setErrorMsg(data.error || t("address.notFound"));
-          onVerified(null);
+          onVerified(null, null);
         }
       } catch {
         setCoords(null);
         setStatus("invalid");
         setErrorMsg(t("address.geoError"));
-        onVerified(null);
+        onVerified(null, null);
       }
     }, 400);
 
