@@ -6,6 +6,7 @@ import { LangProvider, useLang } from "../../contexts/LangContext";
 import {
   getOrders,
   loadMenu,
+  loadSettings,
   saveMenu,
   saveSettings,
   updateOrderStatus,
