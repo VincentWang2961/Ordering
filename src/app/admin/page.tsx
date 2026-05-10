@@ -12,10 +12,11 @@ import {
   updateOrderStatus,
 } from "../../data/store";
 import { MenuItem, Order } from "../../data/types";
+import RoutePlanner from "./components/RoutePlanner";
 
 const ADMIN_PASSWORD = "OrderingAdmin2026";
 
-type AdminTab = "dashboard" | "menu" | "orders";
+type AdminTab = "dashboard" | "menu" | "orders" | "routes";
 
 type MenuFormState = {
   id: string;
@@ -268,6 +269,7 @@ function AdminDashboard() {
     { id: "dashboard" as const, label: t("admin.dashboard") },
     { id: "menu" as const, label: t("admin.menuManagement") },
     { id: "orders" as const, label: t("admin.orderManagement") },
+    { id: "routes" as const, label: t("route.title") },
   ];
 
   return (
@@ -653,6 +655,17 @@ function AdminDashboard() {
                 )}
               </div>
             </div>
+          ) : null}
+
+          {activeTab === "routes" ? (
+            <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+              <RoutePlanner
+                orders={orders}
+                restaurantAddress={settings.pickupAddress}
+                locale={locale}
+                t={t}
+              />
+            </section>
           ) : null}
         </section>
       )}

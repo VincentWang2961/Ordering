@@ -106,6 +106,24 @@
     "pickupAddress": "取餐地址",
     "contactInfo": "联系方式"
   },
+  "route": {
+    "title": "配送路线",
+    "description": "选择已接订单，系统自动计算从餐厅出发的最优配送路线。",
+    "startPoint": "出发点",
+    "selectOrders": "选择订单",
+    "selected": "已选",
+    "noAcceptedOrders": "暂无已接订单，请先在订单管理中接单。",
+    "selectAtLeastOne": "请至少选择一个订单。",
+    "calculate": "计算最优路线",
+    "calculating": "路线计算中",
+    "totalDistance": "总距离",
+    "estimatedTime": "预计驾驶时间",
+    "routeOrder": "路线顺序",
+    "startFrom": "从餐厅出发",
+    "deliverTo": "送达",
+    "showCoordinates": "显示坐标",
+    "demoMode": "演示模式（未设置 API key）"
+  },
   "common": {
     "loading": "加载中...",
     "error": "出错了",
