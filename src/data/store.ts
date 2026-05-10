@@ -109,3 +109,15 @@ export function saveSettings(s: RestaurantSettings) {
   if (typeof window === "undefined") return;
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
 }
+
+export function updateOrderFields(
+  id: string,
+  fields: Partial<Pick<Order, "address" | "contact" | "notes" | "pickupTime">>
+): Order | null {
+  const orders = loadOrders();
+  const idx = orders.findIndex((o) => o.id === id);
+  if (idx === -1) return null;
+  orders[idx] = { ...orders[idx], ...fields };
+  saveOrders(orders);
+  return orders[idx];
+}

@@ -7,16 +7,17 @@ import {
   getOrders,
   loadMenu,
   saveMenu,
-  loadSettings,
   saveSettings,
   updateOrderStatus,
+  updateOrderFields,
 } from "../../data/store";
 import { MenuItem, Order } from "../../data/types";
 import RoutePlanner from "./components/RoutePlanner";
+import KitchenView from "./components/KitchenView";
 
 const ADMIN_PASSWORD = "OrderingAdmin2026";
 
-type AdminTab = "dashboard" | "menu" | "orders" | "routes";
+type AdminTab = "dashboard" | "menu" | "orders" | "routes" | "kitchen";
 
 type MenuFormState = {
   id: string;
@@ -143,6 +144,8 @@ function AdminDashboard() {
   const [menuForm, setMenuForm] = useState<MenuFormState | null>(null);
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
   const [deliverPhoto, setDeliverPhoto] = useState<string>("");
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [editOrderForm, setEditOrderForm] = useState({ pickupTime: "", address: "", contact: "", notes: "" });
 
   const pendingOrders = orders.filter((order) => order.status === "pending");
   const publishedItems = menu.filter((item) => item.published);
@@ -257,6 +260,24 @@ function AdminDashboard() {
     setDeliverPhoto("");
   }
 
+  function openEditOrder(order: Order) {
+    setEditingOrder(order);
+    setEditOrderForm({
+      pickupTime: order.pickupTime || "",
+      address: order.address || "",
+      contact: order.contact || "",
+      notes: order.notes || "",
+    });
+  }
+
+  function saveEditOrder(e: FormEvent) {
+    e.preventDefault();
+    if (!editingOrder) return;
+    updateOrderFields(editingOrder.id, editOrderForm);
+    setOrders(getOrders());
+    setEditingOrder(null);
+  }
+
   function handleSettingsSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     saveSettings(settings);
@@ -285,6 +306,7 @@ function AdminDashboard() {
     { id: "menu" as const, label: t("admin.menuManagement") },
     { id: "orders" as const, label: t("admin.orderManagement") },
     { id: "routes" as const, label: t("route.title") },
+    { id: "kitchen" as const, label: t("kitchen.title") },
   ];
 
   return (
@@ -697,6 +719,13 @@ function AdminDashboard() {
                                 {t("admin.noActions")}
                               </span>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => openEditOrder(order)}
+                              className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-semibold hover:bg-stone-50"
+                            >
+                              {t("admin.editItem")}
+                            </button>
                           </div>
                         </div>
                       </article>
@@ -712,6 +741,16 @@ function AdminDashboard() {
               <RoutePlanner
                 orders={orders}
                 restaurantAddress={settings.pickupAddress}
+                locale={locale}
+                t={t}
+              />
+            </section>
+          ) : null}
+
+          {activeTab === "kitchen" ? (
+            <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+              <KitchenView
+                orders={orders}
                 locale={locale}
                 t={t}
               />
@@ -928,6 +967,71 @@ function AdminDashboard() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {editingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 px-4">
+          <form
+            onSubmit={saveEditOrder}
+            className="mx-auto w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">
+                {t("admin.editItem")}: {editingOrder.id}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditingOrder(null)}
+                className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-50"
+              >
+                {t("admin.cancel")}
+              </button>
+            </div>
+            <div className="mt-5 grid gap-4">
+              <label className="block">
+                <span className="text-sm font-medium text-stone-700">{t("menu.selectTime")}</span>
+                <input type="date" value={editOrderForm.pickupTime}
+                  onChange={(e) => setEditOrderForm({...editOrderForm, pickupTime: e.target.value})}
+                  className="mt-1.5 h-11 w-full rounded-xl border border-stone-300 px-4 outline-none focus:border-amber-600"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-stone-700">{t("menu.address")}</span>
+                <input value={editOrderForm.address}
+                  onChange={(e) => setEditOrderForm({...editOrderForm, address: e.target.value})}
+                  className="mt-1.5 h-11 w-full rounded-xl border border-stone-300 px-4 outline-none focus:border-amber-600"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-stone-700">{t("menu.contact")}</span>
+                <input value={editOrderForm.contact}
+                  onChange={(e) => setEditOrderForm({...editOrderForm, contact: e.target.value})}
+                  className="mt-1.5 h-11 w-full rounded-xl border border-stone-300 px-4 outline-none focus:border-amber-600"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-stone-700">{t("menu.notes")}</span>
+                <textarea value={editOrderForm.notes}
+                  onChange={(e) => setEditOrderForm({...editOrderForm, notes: e.target.value})}
+                  rows={3}
+                  className="mt-1.5 w-full rounded-xl border border-stone-300 px-4 py-2 outline-none focus:border-amber-600"
+                />
+              </label>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button type="button" onClick={() => setEditingOrder(null)}
+                className="flex-1 rounded-xl border border-stone-300 px-4 py-3 text-sm font-semibold hover:bg-stone-50"
+              >
+                {t("admin.cancel")}
+              </button>
+              <button type="submit"
+                className="flex-1 rounded-xl bg-stone-950 px-4 py-3 text-sm font-semibold text-white hover:bg-stone-800"
+              >
+                {t("admin.save")}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </main>

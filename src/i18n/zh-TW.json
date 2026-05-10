@@ -136,7 +136,9 @@
     "map": "地圖預覽",
     "openInMaps": "在 Google Maps 中打開導航",
     "navFromHere": "從我的位置出發導航",
-    "navFromRestaurant": "從餐廳出發導航"
+    "navFromRestaurant": "從餐廳出發導航",
+    "markDelivered": "✓ 已送達",
+    "markException": "✗ 異常"
   },
   "address": {
     "verifying": "正在驗證地址",
@@ -144,6 +146,15 @@
     "notFound": "地址未找到，請輸入有效地址。",
     "geoError": "無法驗證地址，請重試。",
     "loadingMap": "地圖載入中"
+  },
+  "kitchen": {
+    "title": "廚房",
+    "totalOrders": "個訂單",
+    "totalItems": "件菜品待備餐",
+    "orders": "單",
+    "noOrders": "暫無需要備餐的訂單。",
+    "printChecklist": "打印清單",
+    "printDetails": "打印詳情"
   },
   "common": {
     "loading": "載入中...",

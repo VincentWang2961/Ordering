@@ -136,7 +136,9 @@
     "map": "Map Preview",
     "openInMaps": "Open in Google Maps Navigation",
     "navFromHere": "Navigate from My Location",
-    "navFromRestaurant": "Navigate from Restaurant"
+    "navFromRestaurant": "Navigate from Restaurant",
+    "markDelivered": "✓ Delivered",
+    "markException": "✗ Exception"
   },
   "address": {
     "verifying": "Verifying address",
@@ -144,6 +146,15 @@
     "notFound": "Address not found. Please enter a valid address.",
     "geoError": "Could not verify address. Please try again.",
     "loadingMap": "Loading map"
+  },
+  "kitchen": {
+    "title": "Kitchen",
+    "totalOrders": "orders",
+    "totalItems": "items to prepare",
+    "orders": "orders",
+    "noOrders": "No active orders for today.",
+    "printChecklist": "Print Checklist",
+    "printDetails": "Print Details"
   },
   "common": {
     "loading": "Loading...",
