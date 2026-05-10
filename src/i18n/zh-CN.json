@@ -126,7 +126,9 @@
     "loadingMap": "地图加载中",
     "stopNum": "站点",
     "map": "地图预览",
-    "openInMaps": "在 Google Maps 中打开导航"
+    "openInMaps": "在 Google Maps 中打开导航",
+    "navFromHere": "从我的位置出发导航",
+    "navFromRestaurant": "从餐厅出发导航"
   },
   "address": {
     "verifying": "正在验证地址",

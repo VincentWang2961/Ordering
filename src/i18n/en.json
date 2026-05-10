@@ -126,7 +126,9 @@
     "loadingMap": "Loading map",
     "stopNum": "Stop",
     "map": "Map Preview",
-    "openInMaps": "Open in Google Maps Navigation"
+    "openInMaps": "Open in Google Maps Navigation",
+    "navFromHere": "Navigate from My Location",
+    "navFromRestaurant": "Navigate from Restaurant"
   },
   "address": {
     "verifying": "Verifying address",

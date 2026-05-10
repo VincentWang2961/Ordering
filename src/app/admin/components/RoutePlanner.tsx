@@ -27,7 +27,12 @@ interface RouteResult {
 
 const STOP_ICONS = ["🏁", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
 
-function buildGoogleMapsUrl(stops: RouteStop[]): string {
+function buildGoogleMapsUrl(stops: RouteStop[], fromRestaurant = false): string {
+  if (fromRestaurant) {
+    // From restaurant as origin
+    const parts = stops.map((s) => encodeURIComponent(s.address));
+    return `https://www.google.com/maps/dir/${parts.join("/")}`;
+  }
   // Empty origin so Google Maps uses current location as starting point
   const deliveryStops = stops.slice(1);
   if (deliveryStops.length === 0) return "";
@@ -104,8 +109,11 @@ export default function RoutePlanner({
     }
   }
 
-  const gmapsUrl = routeResult
-    ? buildGoogleMapsUrl(routeResult.stops)
+  const gmapsUrlCurrent = routeResult
+    ? buildGoogleMapsUrl(routeResult.stops, false)
+    : null;
+  const gmapsUrlRestaurant = routeResult
+    ? buildGoogleMapsUrl(routeResult.stops, true)
     : null;
 
   return (
@@ -234,20 +242,35 @@ export default function RoutePlanner({
             </div>
           )}
 
-          {/* Open in Google Maps button */}
-          {gmapsUrl && (
-            <a
-              href={gmapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-              {t("route.openInMaps")}
-            </a>
-          )}
+          {/* Open in Google Maps buttons */}
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {gmapsUrlCurrent && (
+              <a
+                href={gmapsUrlCurrent}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+              >
+                <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+                {t("route.navFromHere")}
+              </a>
+            )}
+            {gmapsUrlRestaurant && (
+              <a
+                href={gmapsUrlRestaurant}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl bg-stone-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-stone-600"
+              >
+                <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+                {t("route.navFromRestaurant")}
+              </a>
+            )}
+          </div>
 
           {/* Route order list */}
           <div className="mt-6 space-y-2">
