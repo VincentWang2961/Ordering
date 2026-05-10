@@ -132,7 +132,8 @@
     "gpsPermissionDenied": "Location access denied. Please allow location in your browser settings.",
     "gpsUnavailable": "Location unavailable. Try moving outdoors or enabling Wi-Fi.",
     "gpsTimeout": "Location request timed out. Try again.",
-    "gpsError": "Failed to get location."
+    "gpsError": "Failed to get location.",
+    "gpsRequiresHttps": "GPS requires HTTPS. Open this page over HTTPS to enable tracking, or use localhost."
   },
   "common": {
     "loading": "Loading...",

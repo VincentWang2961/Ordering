@@ -148,16 +148,16 @@ export default function RouteMap({ stops, apiKey, locale, t }: RouteMapProps) {
       return;
     }
 
-    // Check if running on HTTP (non-HTTPS) — GPS requires secure context
-    if (typeof window !== "undefined" && window.location.protocol !== "https:" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-      setGpsError("GPS requires HTTPS. Open this page over HTTPS to enable tracking.");
-      return;
-    }
-
+    // Try GPS — let the browser handle security context
+    // (modern browsers allow GPS on localhost and some HTTP origins)
     if (!navigator.geolocation) {
       setGpsError(t("route.gpsUnsupported"));
       return;
     }
+
+    const isSecure = window.location.protocol === "https:" || 
+                     window.location.hostname === "localhost" || 
+                     window.location.hostname === "127.0.0.1";
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
@@ -169,7 +169,9 @@ export default function RouteMap({ stops, apiKey, locale, t }: RouteMapProps) {
       },
       (err) => {
         const messages: Record<number, string> = {
-          [err.PERMISSION_DENIED]: t("route.gpsPermissionDenied"),
+          [err.PERMISSION_DENIED]: isSecure
+            ? t("route.gpsPermissionDenied")
+            : t("route.gpsRequiresHttps"),
           [err.POSITION_UNAVAILABLE]: t("route.gpsUnavailable"),
           [err.TIMEOUT]: t("route.gpsTimeout"),
         };

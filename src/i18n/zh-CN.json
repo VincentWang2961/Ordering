@@ -127,7 +127,13 @@
     "enableTracking": "开启 GPS 实时定位",
     "trackingActive": "GPS 已开启",
     "stopNum": "站点",
-    "map": "地图"
+    "map": "地图",
+    "gpsUnsupported": "此设备不支持地理定位。",
+    "gpsPermissionDenied": "位置权限被拒绝，请在浏览器设置中允许。",
+    "gpsUnavailable": "无法获取位置，请尝试到室外或开启 Wi-Fi。",
+    "gpsTimeout": "定位请求超时，请重试。",
+    "gpsError": "获取位置失败。",
+    "gpsRequiresHttps": "GPS 需要 HTTPS 环境。请通过 HTTPS 访问此页面，或使用 localhost。"
   },
   "common": {
     "loading": "加载中...",
