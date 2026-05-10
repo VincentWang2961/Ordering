@@ -28,8 +28,11 @@ interface RouteResult {
 const STOP_ICONS = ["🏁", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
 
 function buildGoogleMapsUrl(stops: RouteStop[]): string {
-  const parts = stops.map((s) => encodeURIComponent(s.address));
-  return `https://www.google.com/maps/dir/${parts.join("/")}`;
+  // Empty origin so Google Maps uses current location as starting point
+  const deliveryStops = stops.slice(1);
+  if (deliveryStops.length === 0) return "";
+  const parts = deliveryStops.map((s) => encodeURIComponent(s.address));
+  return `https://www.google.com/maps/dir//${parts.join("/")}`;
 }
 
 export default function RoutePlanner({
