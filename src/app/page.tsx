@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { LangProvider, useLang } from "../contexts/LangContext";
-import { createOrder, loadMenu, loadSettings } from "../data/store";
+import { createOrder, getOrders, loadMenu, loadSettings } from "../data/store";
 import type { MenuItem, Order } from "../data/types";
 
 type CartLine = {
@@ -59,12 +59,23 @@ function settingsName(
   return settings.name;
 }
 
+function formatDateTime(isoString: string): string {
+  const d = new Date(isoString);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, "0");
+  const mins = String(d.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${mins}`;
+}
+
 function CustomerHome() {
   const { locale, setLocale, t } = useLang();
   const [settings] = useState(() => loadSettings());
   const [menu] = useState(() => loadMenu().filter((item) => item.published));
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [form, setForm] = useState<CheckoutForm>(initialForm);
@@ -75,6 +86,7 @@ function CustomerHome() {
     (sum, line) => sum + line.item.price * line.quantity,
     0
   );
+  const orderHistory = orderHistoryOpen ? getOrders() : [];
 
   const categories = useMemo(
     () => Array.from(new Set(menu.map((item) => item.category))),
@@ -181,7 +193,7 @@ function CustomerHome() {
             </div>
             <button
               type="button"
-              onClick={() => setCartOpen(true)}
+              onClick={() => setOrderHistoryOpen(true)}
               className="rounded-full px-4 py-2 text-stone-700 hover:bg-white"
             >
               {t("nav.myOrder")}
@@ -488,6 +500,65 @@ function CustomerHome() {
               {t("menu.placeOrder")} - {formatCurrency(cartTotal)}
             </button>
           </form>
+        </div>
+      ) : null}
+
+      {orderHistoryOpen ? (
+        <div className="fixed inset-0 z-40 flex items-end bg-stone-950/45 sm:items-center sm:justify-center sm:p-6">
+          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-6 shadow-2xl sm:max-w-2xl sm:rounded-3xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">{t("order.history")}</h2>
+              <button
+                type="button"
+                onClick={() => setOrderHistoryOpen(false)}
+                className="rounded-full border border-stone-200 px-3 py-1.5 text-sm hover:bg-stone-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {orderHistory.length === 0 ? (
+                <p className="rounded-xl bg-amber-50 p-4 text-stone-600">
+                  {t("order.noOrders")}
+                </p>
+              ) : (
+                orderHistory.map((order) => (
+                  <div
+                    key={order.id}
+                    className="rounded-xl border border-stone-200 p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">{order.id}</p>
+                        <p className="mt-1 text-sm text-stone-600">
+                          {formatDateTime(order.createdAt)}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                        {t(`order.${order.status}`)}
+                      </span>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-sm text-stone-600">
+                        <span className="font-semibold text-stone-950">
+                          {formatCurrency(order.total)}
+                        </span>{" "}
+                        · {order.items.length}{" "}
+                        {order.items.length === 1 ? "item" : "items"}
+                      </div>
+                      <Link
+                        href={`/order/${order.id}`}
+                        className="rounded-xl bg-stone-950 px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        View Details
+                      </Link>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       ) : null}
 

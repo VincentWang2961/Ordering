@@ -39,7 +39,10 @@
     "noOrders": "No orders yet",
     "lookupTitle": "Look up your order",
     "enterOrderId": "Enter your order number",
-    "search": "Search"
+    "search": "Search",
+    "history": "Order History",
+    "viewDetails": "View Details",
+    "recentOrders": "Recent Orders"
   },
   "admin": {
     "title": "Admin Panel",

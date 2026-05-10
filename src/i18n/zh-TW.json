@@ -39,7 +39,10 @@
     "noOrders": "暫無訂單",
     "lookupTitle": "查詢訂單",
     "enterOrderId": "輸入訂單編號",
-    "search": "查詢"
+    "search": "查詢",
+    "history": "訂單歷史",
+    "viewDetails": "查看詳情",
+    "recentOrders": "最近訂單"
   },
   "admin": {
     "title": "管理後台",

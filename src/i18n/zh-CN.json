@@ -39,7 +39,10 @@
     "noOrders": "暂无订单",
     "lookupTitle": "查询订单",
     "enterOrderId": "输入订单编号",
-    "search": "查询"
+    "search": "查询",
+    "history": "订单历史",
+    "viewDetails": "查看详情",
+    "recentOrders": "最近订单"
   },
   "admin": {
     "title": "管理后台",
