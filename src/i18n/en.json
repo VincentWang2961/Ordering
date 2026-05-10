@@ -122,7 +122,12 @@
     "startFrom": "Start from restaurant",
     "deliverTo": "Deliver to",
     "showCoordinates": "Show coordinates",
-    "demoMode": "Demo Mode (no API key)"
+    "demoMode": "Demo Mode (no API key)",
+    "loadingMap": "Loading map",
+    "enableTracking": "Enable GPS tracking",
+    "trackingActive": "GPS active",
+    "stopNum": "Stop",
+    "map": "Map"
   },
   "common": {
     "loading": "Loading...",
