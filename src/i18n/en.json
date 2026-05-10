@@ -106,6 +106,24 @@
     "pickupAddress": "Pickup Address",
     "contactInfo": "Contact Info"
   },
+  "route": {
+    "title": "Delivery Routes",
+    "description": "Select accepted orders to calculate the optimal delivery route starting from your restaurant.",
+    "startPoint": "Starting Point",
+    "selectOrders": "Select Orders",
+    "selected": "selected",
+    "noAcceptedOrders": "No accepted orders yet. Accept an order first.",
+    "selectAtLeastOne": "Please select at least one order.",
+    "calculate": "Calculate Optimal Route",
+    "calculating": "Calculating Route",
+    "totalDistance": "Total Distance",
+    "estimatedTime": "Est. Driving Time",
+    "routeOrder": "Route Order",
+    "startFrom": "Start from restaurant",
+    "deliverTo": "Deliver to",
+    "showCoordinates": "Show coordinates",
+    "demoMode": "Demo Mode (no API key)"
+  },
   "common": {
     "loading": "Loading...",
     "error": "Something went wrong",

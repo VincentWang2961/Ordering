@@ -106,6 +106,24 @@
     "pickupAddress": "取餐地址",
     "contactInfo": "聯繫方式"
   },
+  "route": {
+    "title": "配送路線",
+    "description": "選擇已接訂單，系統自動計算從餐廳出發的最優配送路線。",
+    "startPoint": "出發點",
+    "selectOrders": "選擇訂單",
+    "selected": "已選",
+    "noAcceptedOrders": "暫無已接訂單，請先在訂單管理中接單。",
+    "selectAtLeastOne": "請至少選擇一個訂單。",
+    "calculate": "計算最優路線",
+    "calculating": "路線計算中",
+    "totalDistance": "總距離",
+    "estimatedTime": "預計駕駛時間",
+    "routeOrder": "路線順序",
+    "startFrom": "從餐廳出發",
+    "deliverTo": "送達",
+    "showCoordinates": "顯示坐標",
+    "demoMode": "演示模式（未設置 API key）"
+  },
   "common": {
     "loading": "載入中...",
     "error": "出錯了",
