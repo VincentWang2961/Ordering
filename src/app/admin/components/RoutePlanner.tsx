@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import type { Order } from "../../../data/types";
-import RouteMap from "./RouteMap";
 
 interface LatLng {
   lat: number;
@@ -26,6 +25,11 @@ interface RouteResult {
 }
 
 const STOP_ICONS = ["🏁", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
+
+function buildGoogleMapsUrl(stops: RouteStop[]): string {
+  const parts = stops.map((s) => encodeURIComponent(s.address));
+  return `https://www.google.com/maps/dir/${parts.join("/")}`;
+}
 
 export default function RoutePlanner({
   orders,
@@ -79,9 +83,7 @@ export default function RoutePlanner({
         body: JSON.stringify({
           restaurantAddress,
           orderAddresses: selectedOrders.map((o) => o.address),
-          orderLabels: selectedOrders.map(
-            (o) => `#${o.id} — ${o.contact}`
-          ),
+          orderLabels: selectedOrders.map((o) => `#${o.id} — ${o.contact}`),
         }),
       });
 
@@ -97,6 +99,10 @@ export default function RoutePlanner({
       setLoading(false);
     }
   }
+
+  const gmapsUrl = routeResult
+    ? buildGoogleMapsUrl(routeResult.stops)
+    : null;
 
   return (
     <div className="mt-8">
@@ -179,6 +185,7 @@ export default function RoutePlanner({
       {/* Results */}
       {routeResult && (
         <div className="mt-8">
+          {/* Summary stats */}
           <div className="flex flex-wrap items-center gap-4 rounded-xl bg-emerald-50 p-5">
             <div className="flex items-center gap-2">
               <span className="text-lg">📏</span>
@@ -192,7 +199,7 @@ export default function RoutePlanner({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-lg">⏱️</span>
+              <span className="text-lg">⏱</span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
                   {t("route.estimatedTime")}
@@ -209,21 +216,22 @@ export default function RoutePlanner({
             )}
           </div>
 
-          {/* Interactive map */}
-          {!routeResult._mock && (
-            <div className="mt-8">
-              <h3 className="mb-3 text-sm font-semibold text-stone-700">
-                {t("route.map")}
-              </h3>
-              <RouteMap
-                stops={routeResult.stops}
-                apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
-                locale={locale}
-                t={t}
-              />
-            </div>
+          {/* Open in Google Maps button */}
+          {gmapsUrl && (
+            <a
+              href={gmapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              {t("route.openInMaps")}
+            </a>
           )}
 
+          {/* Route order list */}
           <div className="mt-6 space-y-2">
             <h3 className="text-sm font-semibold text-stone-700">
               {t("route.routeOrder")}
@@ -260,25 +268,6 @@ export default function RoutePlanner({
               </div>
             ))}
           </div>
-
-          <details className="mt-4 rounded-lg border border-stone-200">
-            <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50">
-              {t("route.showCoordinates")}
-            </summary>
-            <div className="border-t border-stone-200 px-5 py-4">
-              <pre className="overflow-x-auto text-xs text-stone-600">
-                {JSON.stringify(
-                  routeResult.stops.map((s) => ({
-                    label: s.label,
-                    lat: s.lat.toFixed(6),
-                    lng: s.lng.toFixed(6),
-                  })),
-                  null,
-                  2
-                )}
-              </pre>
-            </div>
-          </details>
         </div>
       )}
     </div>

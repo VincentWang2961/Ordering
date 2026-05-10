@@ -123,17 +123,7 @@
     "deliverTo": "Deliver to",
     "showCoordinates": "Show coordinates",
     "demoMode": "Demo Mode (no API key)",
-    "loadingMap": "Loading map",
-    "enableTracking": "Enable GPS tracking",
-    "trackingActive": "GPS active",
-    "stopNum": "Stop",
-    "map": "Map",
-    "gpsUnsupported": "Geolocation is not supported on this device.",
-    "gpsPermissionDenied": "Location access denied. Please allow location in your browser settings.",
-    "gpsUnavailable": "Location unavailable. Try moving outdoors or enabling Wi-Fi.",
-    "gpsTimeout": "Location request timed out. Try again.",
-    "gpsError": "Failed to get location.",
-    "gpsRequiresHttps": "GPS requires HTTPS. Open this page over HTTPS to enable tracking, or use localhost."
+    "openInMaps": "Open in Google Maps Navigation"
   },
   "common": {
     "loading": "Loading...",
