@@ -1,13 +1,19 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode } from "react";
+import en from "@/i18n/en.json";
+import zhCN from "@/i18n/zh-CN.json";
+import zhTW from "@/i18n/zh-TW.json";
 
 type Locale = "en" | "zh-CN" | "zh-TW";
+interface Messages {
+  [key: string]: string | Messages;
+}
 
-const messages: Record<Locale, Record<string, any>> = {
-  en: require("@/i18n/en.json"),
-  "zh-CN": require("@/i18n/zh-CN.json"),
-  "zh-TW": require("@/i18n/zh-TW.json"),
+const messages: Record<Locale, Messages> = {
+  en,
+  "zh-CN": zhCN,
+  "zh-TW": zhTW,
 };
 
 interface LangContextType {
@@ -23,9 +29,9 @@ export function LangProvider({ children }: { children: ReactNode }) {
 
   const t = (path: string): string => {
     const keys = path.split(".");
-    let value: any = messages[locale];
+    let value: string | Messages | undefined = messages[locale];
     for (const key of keys) {
-      value = value?.[key];
+      value = typeof value === "object" ? value[key] : undefined;
     }
     return typeof value === "string" ? value : path;
   };

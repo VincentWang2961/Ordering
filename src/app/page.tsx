@@ -1,65 +1,544 @@
-import Image from "next/image";
+"use client";
+
+import Link from "next/link";
+import { FormEvent, useMemo, useState } from "react";
+import { LangProvider, useLang } from "../contexts/LangContext";
+import { createOrder, loadMenu, loadSettings } from "../data/store";
+import type { MenuItem, Order } from "../data/types";
+
+type CartLine = {
+  item: MenuItem;
+  quantity: number;
+};
+
+type CheckoutForm = {
+  pickupTime: string;
+  address: string;
+  contact: string;
+  notes: string;
+};
+
+const languageOptions = [
+  { locale: "en", label: "EN" },
+  { locale: "zh-CN", label: "简体" },
+  { locale: "zh-TW", label: "繁體" },
+] as const;
+
+const initialForm: CheckoutForm = {
+  pickupTime: "",
+  address: "",
+  contact: "",
+  notes: "",
+};
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "AUD",
+  }).format(amount);
+}
+
+function itemName(item: MenuItem, locale: string) {
+  if (locale === "zh-CN") return item.nameZhCN || item.name;
+  if (locale === "zh-TW") return item.nameZhTW || item.name;
+  return item.name;
+}
+
+function itemDescription(item: MenuItem, locale: string) {
+  if (locale === "zh-CN") return item.descriptionZhCN || item.description;
+  if (locale === "zh-TW") return item.descriptionZhTW || item.description;
+  return item.description;
+}
+
+function settingsName(
+  settings: ReturnType<typeof loadSettings>,
+  locale: string
+) {
+  if (locale === "zh-CN") return settings.nameZhCN || settings.name;
+  if (locale === "zh-TW") return settings.nameZhTW || settings.name;
+  return settings.name;
+}
+
+function CustomerHome() {
+  const { locale, setLocale, t } = useLang();
+  const [settings] = useState(() => loadSettings());
+  const [menu] = useState(() => loadMenu().filter((item) => item.published));
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [form, setForm] = useState<CheckoutForm>(initialForm);
+  const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
+
+  const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
+  const cartTotal = cart.reduce(
+    (sum, line) => sum + line.item.price * line.quantity,
+    0
+  );
+
+  const categories = useMemo(
+    () => Array.from(new Set(menu.map((item) => item.category))),
+    [menu]
+  );
+
+  function updateForm(field: keyof CheckoutForm, value: string) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function addToCart(item: MenuItem, amount = quantity) {
+    setCart((current) => {
+      const existing = current.find((line) => line.item.id === item.id);
+      if (!existing) return [...current, { item, quantity: amount }];
+      return current.map((line) =>
+        line.item.id === item.id
+          ? { ...line, quantity: line.quantity + amount }
+          : line
+      );
+    });
+  }
+
+  function changeCartQuantity(id: string, nextQuantity: number) {
+    if (nextQuantity < 1) {
+      setCart((current) => current.filter((line) => line.item.id !== id));
+      return;
+    }
+
+    setCart((current) =>
+      current.map((line) =>
+        line.item.id === id ? { ...line, quantity: nextQuantity } : line
+      )
+    );
+  }
+
+  function handlePanelOrder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedItem) return;
+
+    const existingCart = cart.filter((line) => line.item.id !== selectedItem.id);
+    const orderCart = [
+      ...existingCart,
+      { item: selectedItem, quantity },
+    ];
+    placeOrder(orderCart);
+  }
+
+  function handleCartOrder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (cart.length === 0) return;
+    placeOrder(cart);
+  }
+
+  function placeOrder(lines: CartLine[]) {
+    const total = lines.reduce(
+      (sum, line) => sum + line.item.price * line.quantity,
+      0
+    );
+    const order = createOrder({
+      items: lines.map((line) => ({
+        menuId: line.item.id,
+        name: itemName(line.item, locale),
+        quantity: line.quantity,
+        price: line.item.price,
+      })),
+      total,
+      pickupTime: form.pickupTime,
+      address: form.address,
+      contact: form.contact,
+      notes: form.notes,
+    });
+
+    setCreatedOrder(order);
+    setCart([]);
+    setSelectedItem(null);
+    setCartOpen(false);
+    setQuantity(1);
+    setForm(initialForm);
+  }
+
+  return (
+    <main className="min-h-screen bg-[oklch(0.97_0.025_77)] pb-28 text-stone-950">
+      <header className="sticky top-0 z-30 border-b border-amber-900/10 bg-[oklch(0.99_0.018_83)]/95 backdrop-blur">
+        <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <Link href="/" className="text-xl font-semibold text-amber-950">
+            {settingsName(settings, locale)}
+          </Link>
+          <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+            <div className="flex rounded-full border border-amber-900/15 bg-white p-1">
+              {languageOptions.map((option) => (
+                <button
+                  key={option.locale}
+                  type="button"
+                  onClick={() => setLocale(option.locale)}
+                  className={`rounded-full px-3 py-1.5 transition ${
+                    locale === option.locale
+                      ? "bg-amber-700 text-white"
+                      : "text-stone-600 hover:bg-amber-50"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setCartOpen(true)}
+              className="rounded-full px-4 py-2 text-stone-700 hover:bg-white"
+            >
+              {t("nav.myOrder")}
+            </button>
+            <Link
+              href="/admin"
+              className="rounded-full bg-stone-950 px-4 py-2 text-white shadow-sm hover:bg-stone-800"
+            >
+              {t("nav.admin")}
+            </Link>
+          </div>
+        </nav>
+      </header>
+
+      <section className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-16">
+        <div className="flex flex-col justify-center">
+          <p className="mb-4 w-fit rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-900">
+            {settings.contact}
+          </p>
+          <h1 className="text-5xl font-bold tracking-tight text-stone-950 sm:text-7xl">
+            Ordering
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-stone-700">
+            {t("home.subtitle")} with fresh dishes, simple pickup scheduling,
+            and quick order tracking.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            {categories.map((category) => (
+              <span
+                key={category}
+                className="rounded-full border border-amber-900/15 bg-white px-4 py-2 text-sm text-stone-700"
+              >
+                {category}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="min-h-80 overflow-hidden rounded-[2rem] bg-amber-900 shadow-2xl shadow-amber-900/20">
+          <img
+            src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80"
+            alt="Restaurant table with shared dishes"
+            className="h-full w-full object-cover"
+          />
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-800">
+              {t("home.browseMenu")}
+            </p>
+            <h2 className="mt-2 text-3xl font-bold text-stone-950">
+              {t("menu.title")}
+            </h2>
+          </div>
+          <p className="hidden text-sm text-stone-600 sm:block">
+            {menu.length} items available
+          </p>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {menu.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setSelectedItem(item);
+                setQuantity(1);
+              }}
+              className="group overflow-hidden rounded-2xl border border-amber-900/10 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-amber-900/10"
+            >
+              <div className="aspect-[4/3] overflow-hidden bg-amber-50">
+                <img
+                  src={item.image}
+                  alt={itemName(item, locale)}
+                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                />
+              </div>
+              <div className="p-5">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <h3 className="text-lg font-semibold text-stone-950">
+                    {itemName(item, locale)}
+                  </h3>
+                  <span className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                    {item.category}
+                  </span>
+                </div>
+                <p className="line-clamp-2 min-h-12 text-sm leading-6 text-stone-600">
+                  {itemDescription(item, locale)}
+                </p>
+                <p className="mt-4 text-xl font-bold text-amber-800">
+                  {formatCurrency(item.price)}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {selectedItem ? (
+        <div className="fixed inset-0 z-40 flex items-end bg-stone-950/45 p-0 sm:items-center sm:justify-center sm:p-6">
+          <form
+            onSubmit={handlePanelOrder}
+            className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-6 shadow-2xl sm:max-w-2xl sm:rounded-3xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                  {selectedItem.category}
+                </span>
+                <h2 className="mt-3 text-2xl font-bold">
+                  {itemName(selectedItem, locale)}
+                </h2>
+                <p className="mt-2 text-stone-600">
+                  {itemDescription(selectedItem, locale)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedItem(null)}
+                className="rounded-full border border-stone-200 px-3 py-1.5 text-sm hover:bg-stone-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-medium text-stone-700">
+                  {t("menu.quantity")}
+                </span>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(event) =>
+                    setQuantity(Math.max(1, Number(event.target.value)))
+                  }
+                  className="mt-2 h-12 w-full rounded-xl border border-stone-200 px-4 outline-none focus:border-amber-600"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-stone-700">
+                  {t("menu.selectTime")}
+                </span>
+                <input
+                  type="datetime-local"
+                  required
+                  value={form.pickupTime}
+                  onChange={(event) =>
+                    updateForm("pickupTime", event.target.value)
+                  }
+                  className="mt-2 h-12 w-full rounded-xl border border-stone-200 px-4 outline-none focus:border-amber-600"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="text-sm font-medium text-stone-700">
+                  {t("menu.address")}
+                </span>
+                <input
+                  required
+                  value={form.address}
+                  onChange={(event) => updateForm("address", event.target.value)}
+                  placeholder={settings.pickupAddress}
+                  className="mt-2 h-12 w-full rounded-xl border border-stone-200 px-4 outline-none focus:border-amber-600"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="text-sm font-medium text-stone-700">
+                  {t("menu.contact")}
+                </span>
+                <input
+                  required
+                  value={form.contact}
+                  onChange={(event) => updateForm("contact", event.target.value)}
+                  className="mt-2 h-12 w-full rounded-xl border border-stone-200 px-4 outline-none focus:border-amber-600"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="text-sm font-medium text-stone-700">
+                  {t("menu.notes")}
+                </span>
+                <textarea
+                  value={form.notes}
+                  onChange={(event) => updateForm("notes", event.target.value)}
+                  rows={3}
+                  className="mt-2 w-full rounded-xl border border-stone-200 px-4 py-3 outline-none focus:border-amber-600"
+                />
+              </label>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => {
+                  addToCart(selectedItem);
+                  setSelectedItem(null);
+                }}
+                className="h-12 flex-1 rounded-xl border border-amber-700 px-5 font-semibold text-amber-800 hover:bg-amber-50"
+              >
+                {t("menu.addToOrder")}
+              </button>
+              <button
+                type="submit"
+                className="h-12 flex-1 rounded-xl bg-amber-700 px-5 font-semibold text-white shadow-sm hover:bg-amber-800"
+              >
+                {t("menu.placeOrder")} -{" "}
+                {formatCurrency(selectedItem.price * quantity)}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {cartOpen ? (
+        <div className="fixed inset-0 z-40 flex items-end bg-stone-950/45 sm:items-center sm:justify-center sm:p-6">
+          <form
+            onSubmit={handleCartOrder}
+            className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-6 shadow-2xl sm:max-w-2xl sm:rounded-3xl"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">{t("order.title")}</h2>
+              <button
+                type="button"
+                onClick={() => setCartOpen(false)}
+                className="rounded-full border border-stone-200 px-3 py-1.5 text-sm hover:bg-stone-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {cart.length === 0 ? (
+                <p className="rounded-xl bg-amber-50 p-4 text-stone-600">
+                  {t("order.noOrders")}
+                </p>
+              ) : (
+                cart.map((line) => (
+                  <div
+                    key={line.item.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 p-3"
+                  >
+                    <div>
+                      <p className="font-semibold">{itemName(line.item, locale)}</p>
+                      <p className="text-sm text-stone-600">
+                        {formatCurrency(line.item.price)}
+                      </p>
+                    </div>
+                    <input
+                      aria-label={`${itemName(line.item, locale)} quantity`}
+                      type="number"
+                      min="0"
+                      value={line.quantity}
+                      onChange={(event) =>
+                        changeCartQuantity(
+                          line.item.id,
+                          Number(event.target.value)
+                        )
+                      }
+                      className="h-11 w-20 rounded-xl border border-stone-200 px-3"
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <input
+                type="datetime-local"
+                required
+                value={form.pickupTime}
+                onChange={(event) => updateForm("pickupTime", event.target.value)}
+                className="h-12 rounded-xl border border-stone-200 px-4 outline-none focus:border-amber-600"
+              />
+              <input
+                required
+                placeholder={t("menu.contact")}
+                value={form.contact}
+                onChange={(event) => updateForm("contact", event.target.value)}
+                className="h-12 rounded-xl border border-stone-200 px-4 outline-none focus:border-amber-600"
+              />
+              <input
+                required
+                placeholder={t("menu.address")}
+                value={form.address}
+                onChange={(event) => updateForm("address", event.target.value)}
+                className="h-12 rounded-xl border border-stone-200 px-4 outline-none focus:border-amber-600 sm:col-span-2"
+              />
+              <textarea
+                placeholder={t("menu.notes")}
+                value={form.notes}
+                onChange={(event) => updateForm("notes", event.target.value)}
+                rows={3}
+                className="rounded-xl border border-stone-200 px-4 py-3 outline-none focus:border-amber-600 sm:col-span-2"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={cart.length === 0}
+              className="mt-5 h-12 w-full rounded-xl bg-amber-700 px-5 font-semibold text-white shadow-sm hover:bg-amber-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+            >
+              {t("menu.placeOrder")} - {formatCurrency(cartTotal)}
+            </button>
+          </form>
+        </div>
+      ) : null}
+
+      {createdOrder ? (
+        <div className="fixed inset-x-4 top-24 z-50 mx-auto max-w-xl rounded-2xl border border-emerald-200 bg-white p-5 shadow-2xl">
+          <p className="font-semibold text-emerald-800">{t("common.success")}</p>
+          <p className="mt-1 text-sm text-stone-700">
+            {t("order.orderNumber")}:{" "}
+            <span className="font-semibold">{createdOrder.id}</span>
+          </p>
+          <div className="mt-4 flex gap-3">
+            <Link
+              href={`/order/${createdOrder.id}`}
+              className="rounded-xl bg-stone-950 px-4 py-2 text-sm font-semibold text-white"
+            >
+              View order
+            </Link>
+            <button
+              type="button"
+              onClick={() => setCreatedOrder(null)}
+              className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-semibold"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => setCartOpen(true)}
+        className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-3xl items-center justify-between rounded-2xl bg-stone-950 px-5 py-4 text-left text-white shadow-2xl shadow-stone-950/25"
+      >
+        <span>
+          <span className="block text-sm text-amber-100">
+            {cartCount} {cartCount === 1 ? "item" : "items"}
+          </span>
+          <span className="block text-lg font-bold">{formatCurrency(cartTotal)}</span>
+        </span>
+        <span className="rounded-full bg-amber-600 px-4 py-2 text-sm font-semibold">
+          {t("order.title")}
+        </span>
+      </button>
+    </main>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <LangProvider>
+      <CustomerHome />
+    </LangProvider>
   );
 }
