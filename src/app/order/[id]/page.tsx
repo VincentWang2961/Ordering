@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { LangProvider, useLang } from "../../../contexts/LangContext";
 import { getOrder } from "../../../data/store";
+import type { Order } from "../../../data/types";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-AU", {
@@ -16,14 +17,11 @@ function formatCurrency(amount: number) {
 function OrderDetails() {
   const params = useParams<{ id: string }>();
   const { t } = useLang();
-  const order = useSyncExternalStore(
-    (onStoreChange) => {
-      window.addEventListener("storage", onStoreChange);
-      return () => window.removeEventListener("storage", onStoreChange);
-    },
-    () => getOrder(params.id),
-    () => undefined
-  );
+  const [order, setOrder] = useState<Order | undefined>(undefined);
+
+  useEffect(() => {
+    setOrder(getOrder(params.id));
+  }, [params.id]);
 
   return (
     <main className="min-h-screen bg-[oklch(0.97_0.025_77)] px-4 py-8 text-stone-950 sm:px-6">
