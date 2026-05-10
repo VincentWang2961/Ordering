@@ -590,7 +590,7 @@ function CustomerHome() {
       <button
         type="button"
         onClick={() => setCartOpen(true)}
-        className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-3xl items-center justify-between rounded-2xl bg-stone-950 px-5 py-4 text-left text-white shadow-2xl shadow-stone-950/25"
+        className="fixed inset-x-4 bottom-[env(safe-area-inset-bottom)] z-30 mx-auto flex max-w-3xl items-center justify-between rounded-2xl bg-stone-950 px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-left text-white shadow-2xl shadow-stone-950/25"
       >
         <span>
           <span className="block text-sm text-amber-100">

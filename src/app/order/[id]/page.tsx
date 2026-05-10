@@ -24,7 +24,8 @@ function OrderDetails() {
   }, [params.id]);
 
   return (
-    <main className="min-h-screen bg-[oklch(0.97_0.025_77)] px-4 py-8 text-stone-950 sm:px-6">
+    <>
+      <main className="min-h-screen bg-[oklch(0.97_0.025_77)] px-4 py-8 text-stone-950 sm:px-6">
       <div className="mx-auto max-w-3xl">
         <Link href="/" className="text-sm font-semibold text-amber-800">
           {t("common.back")}
@@ -120,6 +121,8 @@ function OrderDetails() {
         </section>
       </div>
     </main>
+    <div className="bg-[oklch(0.97_0.025_77)] pb-[env(safe-area-inset-bottom)]" />
+    </>
   );
 }
 

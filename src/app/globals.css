@@ -19,21 +19,20 @@
   }
 }
 
-/* Base html: controls the color shown behind the viewport on iOS Safari
-   (notch area at top, home indicator at bottom, overscroll).
-   Each page sets its own background on <main>, but html catches the safe-area bleed. */
+/* html background matches the sticky nav bar — this is what shows
+   behind the iPhone notch / home indicator and during overscroll */
 html {
-  background-color: oklch(0.97 0.025 77);
+  background-color: oklch(0.99 0.018 83);
 }
 
-/* Body is transparent — lets the page-specific <main> bg show.
-   Safe area padding ensures content stays clear of notch/home indicator. */
+/* Body is transparent — page-specific <main> backgrounds show through.
+   Safe area padding keeps content clear of notch/home indicator. */
 body {
   background: transparent;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

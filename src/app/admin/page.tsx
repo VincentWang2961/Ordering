@@ -271,7 +271,8 @@ function AdminDashboard() {
   ];
 
   return (
-    <main className="min-h-screen bg-[oklch(0.97_0.015_92)] text-stone-950">
+    <>
+      <main className="min-h-screen bg-[oklch(0.97_0.015_92)] text-stone-950">
       <header className="border-b border-stone-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Link href="/" className="text-lg font-bold text-stone-950">
@@ -803,6 +804,9 @@ function AdminDashboard() {
         </div>
       ) : null}
     </main>
+    {/* Safe area bottom spacer */}
+    <div className="bg-[oklch(0.97_0.015_92)] pb-[env(safe-area-inset-bottom)]" />
+    </>
   );
 }
 
