@@ -25,8 +25,14 @@ const languageOptions = [
   { locale: "zh-TW", label: "繁體" },
 ] as const;
 
+function getDefaultDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split("T")[0];
+}
+
 const initialForm: CheckoutForm = {
-  pickupTime: "",
+  pickupTime: getDefaultDate(),
   address: "",
   contact: "",
   notes: "",
@@ -363,7 +369,7 @@ function CustomerHome() {
                   {t("menu.selectTime")}
                 </span>
                 <input
-                  type="datetime-local"
+                  type="date"
                   required
                   value={form.pickupTime}
                   onChange={(event) =>
@@ -493,7 +499,7 @@ function CustomerHome() {
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <input
-                type="datetime-local"
+                type="date"
                 required
                 value={form.pickupTime}
                 onChange={(event) => updateForm("pickupTime", event.target.value)}

@@ -72,6 +72,30 @@ function OrderDetails() {
                   </dt>
                   <dd className="mt-1">{order.address}</dd>
                 </div>
+                {order.status === "delivered" && order.deliveredAt && (
+                  <div className="sm:col-span-2">
+                    <dt className="font-semibold text-stone-500">
+                      {t("order.deliveredAt")}
+                    </dt>
+                    <dd className="mt-1">
+                      {new Date(order.deliveredAt).toLocaleString()}
+                    </dd>
+                  </div>
+                )}
+                {order.status === "delivered" && order.deliveredPhoto && (
+                  <div className="sm:col-span-2">
+                    <dt className="font-semibold text-stone-500">
+                      {t("order.deliveredPhoto")}
+                    </dt>
+                    <dd className="mt-2">
+                      <img
+                        src={order.deliveredPhoto}
+                        alt="Delivery photo"
+                        className="max-h-64 w-full rounded-xl object-cover"
+                      />
+                    </dd>
+                  </div>
+                )}
               </dl>
 
               <div className="mt-8">

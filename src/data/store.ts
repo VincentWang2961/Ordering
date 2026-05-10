@@ -65,12 +65,17 @@ export function createOrder(params: {
 
 export function updateOrderStatus(
   id: string,
-  status: "accepted" | "cancelled"
+  status: "accepted" | "cancelled" | "delivered",
+  photoBase64?: string
 ): Order | null {
   const orders = loadOrders();
   const idx = orders.findIndex((o) => o.id === id);
   if (idx === -1) return null;
   orders[idx].status = status;
+  if (status === "delivered") {
+    orders[idx].deliveredAt = new Date().toISOString();
+    if (photoBase64) orders[idx].deliveredPhoto = photoBase64;
+  }
   saveOrders(orders);
   return orders[idx];
 }

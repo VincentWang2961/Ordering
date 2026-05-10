@@ -42,7 +42,10 @@
     "search": "查詢",
     "history": "訂單歷史",
     "viewDetails": "查看詳情",
-    "recentOrders": "最近訂單"
+    "recentOrders": "最近訂單",
+    "delivered": "已送達",
+    "deliveredAt": "送達時間",
+    "deliveredPhoto": "送達照片"
   },
   "admin": {
     "title": "管理後台",
@@ -104,7 +107,12 @@
     "basicSettings": "基本設置",
     "restaurantName": "餐廳名稱",
     "pickupAddress": "取餐地址",
-    "contactInfo": "聯繫方式"
+    "contactInfo": "聯繫方式",
+    "markDelivered": "標記已送達",
+    "deliverPhotoHint": "可選：拍攝送達照片作為憑證",
+    "uploadPhoto": "上傳照片",
+    "removePhoto": "移除",
+    "confirmDeliver": "確認送達"
   },
   "route": {
     "title": "配送路線",

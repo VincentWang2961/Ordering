@@ -34,8 +34,10 @@ export interface Order {
   lng?: number;
   contact: string;
   notes: string;
-  status: "pending" | "accepted" | "cancelled";
+  status: "pending" | "accepted" | "cancelled" | "delivered";
   createdAt: string;
+  deliveredAt?: string;
+  deliveredPhoto?: string;
 }
 
 export interface RestaurantSettings {

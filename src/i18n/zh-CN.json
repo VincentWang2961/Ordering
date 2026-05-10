@@ -42,7 +42,10 @@
     "search": "查询",
     "history": "订单历史",
     "viewDetails": "查看详情",
-    "recentOrders": "最近订单"
+    "recentOrders": "最近订单",
+    "delivered": "已送达",
+    "deliveredAt": "送达时间",
+    "deliveredPhoto": "送达照片"
   },
   "admin": {
     "title": "管理后台",
@@ -104,7 +107,12 @@
     "basicSettings": "基本设置",
     "restaurantName": "餐厅名称",
     "pickupAddress": "取餐地址",
-    "contactInfo": "联系方式"
+    "contactInfo": "联系方式",
+    "markDelivered": "标记已送达",
+    "deliverPhotoHint": "可选：拍摄送达照片作为凭证",
+    "uploadPhoto": "上传照片",
+    "removePhoto": "移除",
+    "confirmDeliver": "确认送达"
   },
   "route": {
     "title": "配送路线",

@@ -119,6 +119,7 @@ function settingsName(settings: ReturnType<typeof loadSettings>, locale: string)
 function statusBadgeClass(status: Order["status"]) {
   if (status === "accepted") return "bg-emerald-100 text-emerald-800";
   if (status === "cancelled") return "bg-red-100 text-red-800";
+  if (status === "delivered") return "bg-blue-100 text-blue-800";
   return "bg-yellow-100 text-yellow-800";
 }
 
@@ -140,6 +141,8 @@ function AdminDashboard() {
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [menuForm, setMenuForm] = useState<MenuFormState | null>(null);
+  const [deliveringId, setDeliveringId] = useState<string | null>(null);
+  const [deliverPhoto, setDeliverPhoto] = useState<string>("");
 
   const pendingOrders = orders.filter((order) => order.status === "pending");
   const publishedItems = menu.filter((item) => item.published);
@@ -237,9 +240,21 @@ function AdminDashboard() {
     persistMenu(menu.filter((current) => current.id !== item.id));
   }
 
-  function handleOrderStatus(id: string, status: "accepted" | "cancelled") {
-    updateOrderStatus(id, status);
+  function handleOrderStatus(id: string, status: "accepted" | "cancelled" | "delivered", photo?: string) {
+    updateOrderStatus(id, status, photo);
     setOrders(getOrders());
+  }
+
+  function openDeliverDialog(id: string) {
+    setDeliveringId(id);
+    setDeliverPhoto("");
+  }
+
+  function confirmDeliver() {
+    if (!deliveringId) return;
+    handleOrderStatus(deliveringId, "delivered", deliverPhoto || undefined);
+    setDeliveringId(null);
+    setDeliverPhoto("");
   }
 
   function handleSettingsSubmit(event: FormEvent<HTMLFormElement>) {
@@ -642,6 +657,41 @@ function AdminDashboard() {
                                   {t("admin.markCancelled")}
                                 </button>
                               </>
+                            ) : order.status === "accepted" ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => openDeliverDialog(order.id)}
+                                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                >
+                                  {t("admin.markDelivered")}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleOrderStatus(order.id, "cancelled")
+                                  }
+                                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                                >
+                                  {t("admin.markCancelled")}
+                                </button>
+                              </>
+                            ) : order.status === "delivered" ? (
+                              <div className="text-right">
+                                <p className="text-xs font-semibold text-stone-500">
+                                  {t("order.deliveredAt")}
+                                </p>
+                                <p className="text-sm text-stone-700">
+                                  {order.deliveredAt ? formatDate(order.deliveredAt) : "—"}
+                                </p>
+                                {order.deliveredPhoto && (
+                                  <img
+                                    src={order.deliveredPhoto}
+                                    alt="Delivery photo"
+                                    className="mt-2 h-16 w-16 rounded-lg object-cover"
+                                  />
+                                )}
+                              </div>
                             ) : (
                               <span className="text-sm font-semibold text-stone-500">
                                 {t("admin.noActions")}
@@ -816,6 +866,70 @@ function AdminDashboard() {
           </div>
         </div>
       ) : null}
+
+      {deliveringId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 px-4">
+          <div className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-xl font-bold">{t("admin.markDelivered")}</h2>
+            <p className="mt-2 text-sm text-stone-600">{t("admin.deliverPhotoHint")}</p>
+            {deliverPhoto ? (
+              <div className="mt-4">
+                <img
+                  src={deliverPhoto}
+                  alt="Preview"
+                  className="mx-auto max-h-48 rounded-xl object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDeliverPhoto("")}
+                  className="mt-2 text-sm font-semibold text-red-600 hover:text-red-700"
+                >
+                  {t("admin.removePhoto")}
+                </button>
+              </div>
+            ) : (
+              <label className="mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 px-4 py-8 text-sm text-stone-600 hover:border-stone-400">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                {t("admin.uploadPhoto")}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = () => setDeliverPhoto(reader.result as string);
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+              </label>
+            )}
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeliveringId(null);
+                  setDeliverPhoto("");
+                }}
+                className="flex-1 rounded-xl border border-stone-300 px-4 py-3 text-sm font-semibold hover:bg-stone-50"
+              >
+                {t("admin.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeliver}
+                className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                {t("admin.confirmDeliver")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
     {/* Safe area bottom spacer */}
     <div className="bg-[#f2ebde] pb-[env(safe-area-inset-bottom)]" />
