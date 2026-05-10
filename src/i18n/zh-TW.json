@@ -122,7 +122,12 @@
     "startFrom": "從餐廳出發",
     "deliverTo": "送達",
     "showCoordinates": "顯示坐標",
-    "demoMode": "演示模式（未設置 API key）"
+    "demoMode": "演示模式（未設置 API key）",
+    "loadingMap": "地圖載入中",
+    "enableTracking": "開啟 GPS 實時定位",
+    "trackingActive": "GPS 已開啟",
+    "stopNum": "站點",
+    "map": "地圖"
   },
   "common": {
     "loading": "載入中...",
