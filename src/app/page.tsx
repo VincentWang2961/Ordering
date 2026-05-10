@@ -591,15 +591,16 @@ function CustomerHome() {
       <button
         type="button"
         onClick={() => setCartOpen(true)}
-        className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-3xl items-center justify-between rounded-2xl bg-stone-950 px-5 py-4 text-left text-white shadow-2xl shadow-stone-950/25"
+        className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-3xl items-center justify-between rounded-full bg-stone-950 px-6 py-3 text-white shadow-2xl shadow-stone-950/25"
       >
-        <span>
-          <span className="block text-sm text-amber-100">
+        <span className="flex items-center gap-2 text-sm">
+          <span className="font-semibold">
             {cartCount} {cartCount === 1 ? "item" : "items"}
           </span>
-          <span className="block text-lg font-bold">{formatCurrency(cartTotal)}</span>
+          <span className="text-amber-100/40">·</span>
+          <span className="text-base font-bold">{formatCurrency(cartTotal)}</span>
         </span>
-        <span className="rounded-full bg-amber-600 px-4 py-2 text-sm font-semibold">
+        <span className="rounded-full bg-amber-600 px-5 py-1.5 text-sm font-semibold">
           {t("order.title")}
         </span>
       </button>
