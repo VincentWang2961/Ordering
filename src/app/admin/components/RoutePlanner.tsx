@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { Order } from "../../../data/types";
+import RouteMap from "./RouteMap";
 
 interface LatLng {
   lat: number;
@@ -215,6 +216,20 @@ export default function RoutePlanner({
               </span>
             )}
           </div>
+
+          {/* Map preview */}
+          {!routeResult._mock && (
+            <div className="mt-6">
+              <h3 className="mb-3 text-sm font-semibold text-stone-700">
+                {t("route.map")}
+              </h3>
+              <RouteMap
+                stops={routeResult.stops}
+                apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
+                t={t}
+              />
+            </div>
+          )}
 
           {/* Open in Google Maps button */}
           {gmapsUrl && (
