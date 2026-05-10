@@ -46,6 +46,8 @@ export function createOrder(params: {
   total: number;
   pickupTime: string;
   address: string;
+  lat?: number;
+  lng?: number;
   contact: string;
   notes: string;
 }): Order {

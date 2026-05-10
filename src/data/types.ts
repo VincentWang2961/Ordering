@@ -30,6 +30,8 @@ export interface Order {
   total: number;
   pickupTime: string;
   address: string;
+  lat?: number;
+  lng?: number;
   contact: string;
   notes: string;
   status: "pending" | "accepted" | "cancelled";

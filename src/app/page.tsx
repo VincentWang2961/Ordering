@@ -5,6 +5,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { LangProvider, useLang } from "../contexts/LangContext";
 import { createOrder, getOrders, loadMenu, loadSettings } from "../data/store";
 import type { MenuItem, Order } from "../data/types";
+import AddressInput from "./components/AddressInput";
 
 type CartLine = {
   item: MenuItem;
@@ -79,6 +80,9 @@ function CustomerHome() {
   const [quantity, setQuantity] = useState(1);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [form, setForm] = useState<CheckoutForm>(initialForm);
+  const [verifiedLat, setVerifiedLat] = useState<number | null>(null);
+  const [verifiedLng, setVerifiedLng] = useState<number | null>(null);
+  const [addressError, setAddressError] = useState("");
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
 
   const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
@@ -94,6 +98,7 @@ function CustomerHome() {
   );
 
   function updateForm(field: keyof CheckoutForm, value: string) {
+    if (field === "address") setAddressError("");
     setForm((current) => ({ ...current, [field]: value }));
   }
 
@@ -126,6 +131,11 @@ function CustomerHome() {
     event.preventDefault();
     if (!selectedItem) return;
 
+    if (!verifiedLat || !verifiedLng) {
+      setAddressError(t("address.notFound"));
+      return;
+    }
+
     const existingCart = cart.filter((line) => line.item.id !== selectedItem.id);
     const orderCart = [
       ...existingCart,
@@ -137,6 +147,12 @@ function CustomerHome() {
   function handleCartOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (cart.length === 0) return;
+
+    if (!verifiedLat || !verifiedLng) {
+      setAddressError(t("address.notFound"));
+      return;
+    }
+
     placeOrder(cart);
   }
 
@@ -155,6 +171,8 @@ function CustomerHome() {
       total,
       pickupTime: form.pickupTime,
       address: form.address,
+      lat: verifiedLat ?? undefined,
+      lng: verifiedLng ?? undefined,
       contact: form.contact,
       notes: form.notes,
     });
@@ -165,6 +183,9 @@ function CustomerHome() {
     setCartOpen(false);
     setQuantity(1);
     setForm(initialForm);
+    setVerifiedLat(null);
+    setVerifiedLng(null);
+    setAddressError("");
   }
 
   return (
@@ -355,12 +376,15 @@ function CustomerHome() {
                 <span className="text-sm font-medium text-stone-700">
                   {t("menu.address")}
                 </span>
-                <input
-                  required
+                <AddressInput
                   value={form.address}
-                  onChange={(event) => updateForm("address", event.target.value)}
+                  onChange={(v) => updateForm("address", v)}
+                  onVerified={(lat, lng) => {
+                    setVerifiedLat(lat);
+                    setVerifiedLng(lng);
+                  }}
                   placeholder={settings.pickupAddress}
-                  className="mt-2 h-12 w-full rounded-xl border border-stone-200 px-4 outline-none focus:border-amber-600"
+                  t={t}
                 />
               </label>
               <label className="block sm:col-span-2">
@@ -387,6 +411,11 @@ function CustomerHome() {
               </label>
             </div>
 
+            {addressError && (
+              <p className="mt-3 text-sm font-medium text-red-500">
+                {addressError}
+              </p>
+            )}
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
@@ -477,12 +506,15 @@ function CustomerHome() {
                 onChange={(event) => updateForm("contact", event.target.value)}
                 className="h-12 rounded-xl border border-stone-200 px-4 outline-none focus:border-amber-600"
               />
-              <input
-                required
-                placeholder={t("menu.address")}
+              <AddressInput
                 value={form.address}
-                onChange={(event) => updateForm("address", event.target.value)}
-                className="h-12 rounded-xl border border-stone-200 px-4 outline-none focus:border-amber-600 sm:col-span-2"
+                onChange={(v) => updateForm("address", v)}
+                onVerified={(lat, lng) => {
+                  setVerifiedLat(lat);
+                  setVerifiedLng(lng);
+                }}
+                placeholder={settings.pickupAddress}
+                t={t}
               />
               <textarea
                 placeholder={t("menu.notes")}
@@ -493,6 +525,11 @@ function CustomerHome() {
               />
             </div>
 
+            {addressError && (
+              <p className="mt-3 text-sm font-medium text-red-500">
+                {addressError}
+              </p>
+            )}
             <button
               type="submit"
               disabled={cart.length === 0}
