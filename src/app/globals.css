@@ -19,8 +19,21 @@
   }
 }
 
+/* html background matches the sticky nav bar — this is what shows
+   behind the iPhone notch and during overscroll */
+html {
+  background-color: #faf5ed;
+}
+
+/* Body matches html so the entire viewport (including safe areas)
+   has a consistent light cream background. padding-bottom extends
+   into the home-indicator safe area so nothing goes black there. */
 body {
-  background: var(--background);
+  background-color: #faf5ed;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
