@@ -69,7 +69,8 @@ export function createOrder(params: {
 export function updateOrderStatus(
   id: string,
   status: "accepted" | "cancelled" | "delivered",
-  photoBase64?: string
+  photoBase64?: string,
+  deliveryComment?: string
 ): Order | null {
   const orders = loadOrders();
   const idx = orders.findIndex((o) => o.id === id);
@@ -78,6 +79,8 @@ export function updateOrderStatus(
   if (status === "delivered") {
     orders[idx].deliveredAt = new Date().toISOString();
     if (photoBase64) orders[idx].deliveredPhoto = photoBase64;
+    if (deliveryComment) orders[idx].deliveryComment = deliveryComment;
+    else delete orders[idx].deliveryComment;
   }
   saveOrders(orders);
   return orders[idx];

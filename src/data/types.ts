@@ -40,6 +40,7 @@ export interface Order {
   deliveredPhoto?: string;
   paid: boolean;
   paidAt?: string;
+  deliveryComment?: string;
 }
 
 export interface RestaurantSettings {

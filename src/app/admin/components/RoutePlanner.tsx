@@ -189,10 +189,10 @@ export default function RoutePlanner({
     updateOrderStatus(
       deliveryModal.orderId,
       "delivered",
-      deliverPhoto || undefined
+      deliverPhoto || undefined,
+      deliverComment.trim() || undefined
     );
     updateOrderPaymentStatus(deliveryModal.orderId, deliverPaid);
-    saveDeliveryComment(deliveryModal.orderId, deliverComment);
     refreshDisplayOrders();
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -758,12 +758,12 @@ export default function RoutePlanner({
                                 className="h-16 w-16 rounded-lg object-cover"
                               />
                             )}
-                            {orderMatch.deliveredComment && (
+                            {orderMatch.deliveryComment && (
                               <p className="text-xs text-stone-600">
                                 <span className="font-semibold text-stone-700">
                                   {t("admin.deliveryNote")}:
                                 </span>{" "}
-                                {orderMatch.deliveredComment}
+                                {orderMatch.deliveryComment}
                               </p>
                             )}
                           </div>
