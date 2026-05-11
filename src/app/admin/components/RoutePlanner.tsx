@@ -7,6 +7,7 @@ import {
   updateOrderPaymentStatus,
   updateOrderStatus,
 } from "../../../data/store";
+import OrderMap from "./OrderMap";
 import RouteMap from "./RouteMap";
 
 interface LatLng {
@@ -382,6 +383,24 @@ export default function RoutePlanner({
               Clear
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Map-based order selection */}
+      <div className="mt-4 rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-stone-700">
+          Select from Map
+        </h3>
+        <div className="mt-3">
+          <OrderMap
+            orders={acceptedOrders}
+            selectedIds={selectedIds}
+            restaurantAddress={restaurantAddress}
+            restaurantLatLng={restaurantLatLng}
+            onToggleOrder={toggleOrder}
+            apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
+            t={t}
+          />
         </div>
       </div>
 
