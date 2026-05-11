@@ -138,7 +138,13 @@
     "navFromHere": "Navigate from My Location",
     "navFromRestaurant": "Navigate from Restaurant",
     "markDelivered": "✓ Delivered",
-    "markException": "✗ Exception"
+    "markException": "✗ Exception",
+    "autoSelect": "Auto-select by quantity",
+    "autoSelectBtn": "Auto-select",
+    "enterQuantity": "# orders",
+    "estimatedTimeRaw": "Driving Time",
+    "estimatedTimeAdjusted": "Est. Total Time (with stops)",
+    "adjustedDetail": "{driving} driving + {stops} min loading ({count} stops × 5 min)"
   },
   "address": {
     "verifying": "Verifying address",
