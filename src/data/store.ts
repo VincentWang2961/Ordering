@@ -50,10 +50,13 @@ export function createOrder(params: {
   lng?: number;
   contact: string;
   notes: string;
+  paid?: boolean;
 }): Order {
   const order: Order = {
     id: generateOrderId(),
     ...params,
+    paid: params.paid ?? false,
+    paidAt: params.paid ? new Date().toISOString() : undefined,
     status: "pending",
     createdAt: new Date().toISOString(),
   };
@@ -76,6 +79,16 @@ export function updateOrderStatus(
     orders[idx].deliveredAt = new Date().toISOString();
     if (photoBase64) orders[idx].deliveredPhoto = photoBase64;
   }
+  saveOrders(orders);
+  return orders[idx];
+}
+
+export function updateOrderPaymentStatus(id: string, paid: boolean): Order | null {
+  const orders = loadOrders();
+  const idx = orders.findIndex((o) => o.id === id);
+  if (idx === -1) return null;
+  orders[idx].paid = paid;
+  orders[idx].paidAt = paid ? new Date().toISOString() : undefined;
   saveOrders(orders);
   return orders[idx];
 }
@@ -112,12 +125,15 @@ export function saveSettings(s: RestaurantSettings) {
 
 export function updateOrderFields(
   id: string,
-  fields: Partial<Pick<Order, "address" | "contact" | "notes" | "pickupTime">>
+  fields: Partial<Pick<Order, "address" | "contact" | "notes" | "pickupTime" | "paid">>
 ): Order | null {
   const orders = loadOrders();
   const idx = orders.findIndex((o) => o.id === id);
   if (idx === -1) return null;
   orders[idx] = { ...orders[idx], ...fields };
+  if ("paid" in fields) {
+    orders[idx].paidAt = fields.paid ? new Date().toISOString() : undefined;
+  }
   saveOrders(orders);
   return orders[idx];
 }

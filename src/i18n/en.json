@@ -45,7 +45,12 @@
     "recentOrders": "Recent Orders",
     "delivered": "Delivered",
     "deliveredAt": "Delivered at",
-    "deliveredPhoto": "Delivery Photo"
+    "deliveredPhoto": "Delivery Photo",
+    "paid": "Paid",
+    "unpaid": "Unpaid",
+    "payment": "Payment",
+    "paymentStatus": "Payment Status",
+    "paidAt": "Paid at"
   },
   "admin": {
     "title": "Admin Panel",
@@ -112,7 +117,16 @@
     "deliverPhotoHint": "Optionally take a photo to confirm delivery",
     "uploadPhoto": "Upload Photo",
     "removePhoto": "Remove",
-    "confirmDeliver": "Confirm Delivery"
+    "confirmDeliver": "Confirm Delivery",
+    "addOrder": "Add Order",
+    "createOrder": "Create Order",
+    "orderItems": "Order Items",
+    "selectItems": "Select Items",
+    "item": "Item",
+    "markAsPaid": "Mark as Paid",
+    "markAsUnpaid": "Mark as Unpaid",
+    "statusLabel": "Status",
+    "selectStatus": "Select Status"
   },
   "route": {
     "title": "Delivery Routes",

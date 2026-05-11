@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { Order } from "../../../data/types";
 import { updateOrderStatus } from "../../../data/store";
 import RouteMap from "./RouteMap";
@@ -23,12 +23,30 @@ interface RouteResult {
   totalDistance: string;
   totalDuration: string;
   orderSummary: string[];
+  totalDistanceKm?: number;
+  totalDurationSeconds?: number;
+  polyline?: string;
   _mock?: boolean;
 }
 
-const STOP_ICONS = ["🏁", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
+const ROUTE_STATE_KEY = "ordering_route_state";
+const STOP_LABELS = ["Start", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
 
 const PER_STOP_LOADING_MIN = 5;
+
+function loadSavedRouteState(): {
+  routeResult?: RouteResult;
+  selectedIds?: string[];
+  endAddress?: string;
+} | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(ROUTE_STATE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 function haversineDistance(a: LatLng, b: LatLng): number {
   const R = 6371; // km
@@ -76,29 +94,59 @@ function buildGoogleMapsUrl(stops: RouteStop[], fromRestaurant = false): string 
 export default function RoutePlanner({
   orders,
   restaurantAddress,
-  locale,
   t,
 }: {
   orders: Order[];
   restaurantAddress: string;
-  locale: string;
   t: (key: string) => string;
 }) {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
+    const saved = loadSavedRouteState();
+    if (saved?.selectedIds?.length) return new Set(saved.selectedIds);
+    return new Set(orders.filter((o) => o.status === "accepted").map((o) => o.id));
+  });
+  const [routeResult, setRouteResult] = useState<RouteResult | null>(() => {
+    const saved = loadSavedRouteState();
+    return saved?.routeResult || null;
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [quantity, setQuantity] = useState("");
   const [restaurantLatLng, setRestaurantLatLng] = useState<LatLng | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
-
-  // Auto-select accepted orders
-  useEffect(() => {
-    const accepted = orders.filter((o) => o.status === "accepted");
-    setSelectedIds(new Set(accepted.map((o) => o.id)));
-  }, [orders]);
+  const [endAddress, setEndAddress] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      const saved = loadSavedRouteState();
+      return saved?.endAddress || localStorage.getItem("ordering_end_address") || "";
+    } catch {
+      return "";
+    }
+  });
 
   const acceptedOrders = orders.filter((o) => o.status === "accepted");
+
+  function handleEndAddressChange(value: string) {
+    setEndAddress(value);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ordering_end_address", value);
+      } catch {}
+    }
+  }
+
+  function saveRouteState(result: RouteResult, ids: Set<string>, endAddr: string) {
+    try {
+      localStorage.setItem(
+        ROUTE_STATE_KEY,
+        JSON.stringify({
+          routeResult: result,
+          selectedIds: Array.from(ids),
+          endAddress: endAddr,
+        })
+      );
+    } catch {}
+  }
 
   function toggleOrder(id: string) {
     setRouteResult(null);
@@ -193,6 +241,7 @@ export default function RoutePlanner({
 
     setLoading(true);
     try {
+      const normalizedEndAddress = endAddress.trim();
       const res = await fetch("/api/optimize-route", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -200,6 +249,7 @@ export default function RoutePlanner({
           restaurantAddress,
           orderAddresses: selectedOrders.map((o) => o.address),
           orderLabels: selectedOrders.map((o) => `#${o.id} — ${o.contact}`),
+          endAddress: normalizedEndAddress || undefined,
         }),
       });
 
@@ -208,6 +258,7 @@ export default function RoutePlanner({
         setError(data.error || "Failed to calculate route");
       } else {
         setRouteResult(data);
+        saveRouteState(data, selectedIds, normalizedEndAddress);
       }
     } catch {
       setError("Network error. Is the server running?");
@@ -221,7 +272,9 @@ export default function RoutePlanner({
   let adjustedDetail: string | null = null;
   if (routeResult) {
     const drivingMins = parseDurationToMinutes(routeResult.totalDuration);
-    const deliveryStops = routeResult.stops.length - 1; // exclude restaurant (stop 0)
+    const deliveryStops = routeResult.stops.filter((stop) =>
+      acceptedOrders.some((order) => stop.label.startsWith(`#${order.id}`))
+    ).length;
     const totalMins = drivingMins + deliveryStops * PER_STOP_LOADING_MIN;
     adjustedDuration = formatMinutes(totalMins);
     adjustedDetail = `${formatMinutes(drivingMins)} driving + ${deliveryStops} stops × ${PER_STOP_LOADING_MIN} min`;
@@ -245,6 +298,30 @@ export default function RoutePlanner({
           {t("route.startPoint")}
         </h3>
         <p className="mt-2 font-medium text-stone-950">{restaurantAddress}</p>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+        <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-stone-500">
+          End Point (optional - e.g. your home)
+        </h3>
+        <div className="mt-2 flex items-center gap-3">
+          <input
+            type="text"
+            value={endAddress}
+            onChange={(e) => handleEndAddressChange(e.target.value)}
+            placeholder="e.g. 123 Home Street, Perth WA"
+            className="h-11 flex-1 rounded-lg border border-stone-300 px-4 text-sm outline-none focus:border-amber-700"
+          />
+          {endAddress && (
+            <button
+              type="button"
+              onClick={() => handleEndAddressChange("")}
+              className="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-500 hover:bg-stone-50"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Feature 1: Quantity-based auto-select */}
@@ -358,7 +435,9 @@ export default function RoutePlanner({
           {/* Summary stats */}
           <div className="flex flex-wrap items-center gap-4 rounded-xl bg-emerald-50 p-5">
             <div className="flex items-center gap-2">
-              <span className="text-lg">📏</span>
+              <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800">
+                KM
+              </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
                   {t("route.totalDistance")}
@@ -370,7 +449,9 @@ export default function RoutePlanner({
             </div>
             {/* Feature 2: Raw driving time */}
             <div className="flex items-center gap-2">
-              <span className="text-lg">🚗</span>
+              <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800">
+                DR
+              </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
                   {t("route.estimatedTimeRaw")}
@@ -382,7 +463,9 @@ export default function RoutePlanner({
             </div>
             {/* Feature 2: Adjusted duration (with stops) */}
             <div className="flex items-center gap-2">
-              <span className="text-lg">⏱</span>
+              <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800">
+                TT
+              </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
                   {t("route.estimatedTimeAdjusted")}
@@ -458,6 +541,9 @@ export default function RoutePlanner({
                 const orderMatch = acceptedOrders.find((o) =>
                   stop.label.startsWith(`#${o.id}`)
                 );
+                const isEndStop = Boolean(
+                  endAddress && i === routeResult.stops.length - 1 && !orderMatch
+                );
                 return (
                   <div
                     key={i}
@@ -468,14 +554,16 @@ export default function RoutePlanner({
                     }`}
                   >
                     <div className="flex items-start gap-4">
-                      <span className="mt-0.5 text-xl font-bold text-stone-600">
-                        {STOP_ICONS[i] || `#${i}`}
+                      <span className="mt-0.5 min-w-10 text-sm font-bold text-stone-600">
+                        {STOP_LABELS[i] || `#${i}`}
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-stone-950">
                           {i === 0
                             ? t("route.startFrom")
-                            : `${t("route.deliverTo")} #${orderMatch?.id || stop.index}`}
+                            : isEndStop
+                              ? "Ends at"
+                              : `${t("route.deliverTo")} #${orderMatch?.id || stop.index}`}
                         </p>
                         <p className="mt-0.5 text-sm text-stone-600">
                           {stop.label}
@@ -503,6 +591,22 @@ export default function RoutePlanner({
                               {orderMatch.items
                                 .map((item) => `${item.quantity}x ${item.name}`)
                                 .join(", ")}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-stone-700">
+                                {t("order.payment")}:
+                              </span>{" "}
+                              <span
+                                className={
+                                  orderMatch.paid
+                                    ? "text-emerald-600"
+                                    : "font-semibold text-amber-600"
+                                }
+                              >
+                                {orderMatch.paid
+                                  ? t("order.paid")
+                                  : t("order.unpaid")}
+                              </span>
                             </p>
                             {orderMatch.notes && (
                               <p>
@@ -535,7 +639,7 @@ export default function RoutePlanner({
                           }}
                           className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
                         >
-                          {t("route.markDelivered")} ✓
+                          {t("route.markDelivered")}
                         </button>
                         <button
                           type="button"
@@ -545,7 +649,7 @@ export default function RoutePlanner({
                           }}
                           className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
                         >
-                          {t("route.markException")} ✗
+                          {t("route.markException")}
                         </button>
                       </div>
                     )}
@@ -568,6 +672,11 @@ export default function RoutePlanner({
                 );
               })}
             </div>
+            {endAddress && (
+              <p className="mt-3 rounded-lg bg-stone-100 px-4 py-3 text-sm text-stone-700">
+                Ends at: {endAddress}
+              </p>
+            )}
           </div>
         </div>
       )}

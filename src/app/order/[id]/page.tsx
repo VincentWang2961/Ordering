@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import { LangProvider, useLang } from "../../../contexts/LangContext";
 import { getOrder } from "../../../data/store";
-import type { Order } from "../../../data/types";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-AU", {
@@ -17,11 +15,7 @@ function formatCurrency(amount: number) {
 function OrderDetails() {
   const params = useParams<{ id: string }>();
   const { t } = useLang();
-  const [order, setOrder] = useState<Order | undefined>(undefined);
-
-  useEffect(() => {
-    setOrder(getOrder(params.id));
-  }, [params.id]);
+  const order = getOrder(params.id);
 
   return (
     <>
@@ -42,6 +36,18 @@ function OrderDetails() {
                 </div>
                 <span className="rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-900">
                   {t(`order.${order.status}`)}
+                </span>
+              </div>
+
+              <div className="mt-3">
+                <span
+                  className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                    order.paid
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  {order.paid ? t("order.paid") : t("order.unpaid")}
                 </span>
               </div>
 
@@ -71,6 +77,22 @@ function OrderDetails() {
                     {t("menu.address")}
                   </dt>
                   <dd className="mt-1">{order.address}</dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="font-semibold text-stone-500">
+                    {t("order.paymentStatus")}
+                  </dt>
+                  <dd className="mt-1">
+                    <span
+                      className={`font-semibold ${
+                        order.paid ? "text-emerald-600" : "text-amber-600"
+                      }`}
+                    >
+                      {order.paid ? t("order.paid") : t("order.unpaid")}
+                    </span>
+                    {order.paidAt &&
+                      ` · ${new Date(order.paidAt).toLocaleString()}`}
+                  </dd>
                 </div>
                 {order.status === "delivered" && order.deliveredAt && (
                   <div className="sm:col-span-2">

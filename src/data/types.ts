@@ -38,6 +38,8 @@ export interface Order {
   createdAt: string;
   deliveredAt?: string;
   deliveredPhoto?: string;
+  paid: boolean;
+  paidAt?: string;
 }
 
 export interface RestaurantSettings {

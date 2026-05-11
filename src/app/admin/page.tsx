@@ -4,11 +4,13 @@ import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { LangProvider, useLang } from "../../contexts/LangContext";
 import {
+  createOrder,
   getOrders,
   loadMenu,
   loadSettings,
   saveMenu,
   saveSettings,
+  updateOrderPaymentStatus,
   updateOrderStatus,
   updateOrderFields,
 } from "../../data/store";
@@ -17,6 +19,7 @@ import RoutePlanner from "./components/RoutePlanner";
 import KitchenView from "./components/KitchenView";
 
 const ADMIN_PASSWORD = "OrderingAdmin2026";
+const AUTH_KEY = "ordering_auth";
 
 type AdminTab = "dashboard" | "menu" | "orders" | "routes" | "kitchen";
 
@@ -35,6 +38,19 @@ type MenuFormState = {
   startDate: string;
   endDate: string;
   availableDays: number[];
+};
+
+type NewOrderStatus = "pending" | "accepted";
+
+type NewOrderFormState = {
+  contactName: string;
+  address: string;
+  contactNumber: string;
+  pickupDate: string;
+  notes: string;
+  status: NewOrderStatus;
+  paid: boolean;
+  items: Record<string, { selected: boolean; quantity: string }>;
 };
 
 const languageOptions = [
@@ -69,6 +85,27 @@ function emptyMenuForm(): MenuFormState {
     startDate: "",
     endDate: "",
     availableDays: [],
+  };
+}
+
+function tomorrowDate() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function emptyNewOrderForm(items: MenuItem[]): NewOrderFormState {
+  return {
+    contactName: "",
+    address: "",
+    contactNumber: "",
+    pickupDate: tomorrowDate(),
+    notes: "",
+    status: "pending",
+    paid: false,
+    items: Object.fromEntries(
+      items.map((item) => [item.id, { selected: false, quantity: "1" }])
+    ),
   };
 }
 
@@ -134,7 +171,18 @@ function publishedBadgeClass(published: boolean) {
 function AdminDashboard() {
   const { locale, setLocale, t } = useLang();
   const [password, setPassword] = useState("");
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const raw = localStorage.getItem(AUTH_KEY);
+      if (!raw) return false;
+      const auth = JSON.parse(raw);
+      const elapsed = Date.now() - new Date(auth.loggedInAt).getTime();
+      return elapsed < 30 * 24 * 60 * 60 * 1000;
+    } catch {
+      return false;
+    }
+  });
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [menu, setMenu] = useState<MenuItem[]>(() => loadMenu());
@@ -147,9 +195,27 @@ function AdminDashboard() {
   const [deliverPhoto, setDeliverPhoto] = useState<string>("");
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [editOrderForm, setEditOrderForm] = useState({ pickupTime: "", address: "", contact: "", notes: "" });
+  const [showCreateOrder, setShowCreateOrder] = useState(false);
+  const [newOrderForm, setNewOrderForm] = useState<NewOrderFormState>(() =>
+    emptyNewOrderForm(loadMenu())
+  );
 
   const pendingOrders = orders.filter((order) => order.status === "pending");
   const publishedItems = menu.filter((item) => item.published);
+  const newOrderItems = menu
+    .map((item) => {
+      const line = newOrderForm.items[item.id];
+      return {
+        item,
+        selected: line?.selected ?? false,
+        quantity: Math.max(1, Number(line?.quantity) || 1),
+      };
+    })
+    .filter((line) => line.selected);
+  const newOrderTotal = newOrderItems.reduce(
+    (sum, line) => sum + line.item.price * line.quantity,
+    0
+  );
   const categories = useMemo(
     () => Array.from(new Set(menu.map((item) => item.category).filter(Boolean))),
     [menu]
@@ -163,6 +229,10 @@ function AdminDashboard() {
       setMenu(loadMenu());
       setOrders(getOrders());
       setSettings(loadSettings());
+      localStorage.setItem(
+        AUTH_KEY,
+        JSON.stringify({ loggedInAt: new Date().toISOString() })
+      );
       return;
     }
     setError(t("admin.wrongPassword"));
@@ -186,6 +256,57 @@ function AdminDashboard() {
   function closeMenuForm() {
     setEditingItem(null);
     setMenuForm(null);
+  }
+
+  function openCreateOrder() {
+    setNewOrderForm(emptyNewOrderForm(menu));
+    setShowCreateOrder(true);
+  }
+
+  function updateNewOrderItem(
+    id: string,
+    fields: Partial<{ selected: boolean; quantity: string }>
+  ) {
+    setNewOrderForm((current) => {
+      const existing = current.items[id] ?? { selected: false, quantity: "1" };
+      return {
+        ...current,
+        items: {
+          ...current.items,
+          [id]: { ...existing, ...fields },
+        },
+      };
+    });
+  }
+
+  function handleCreateOrder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (newOrderItems.length === 0) return;
+
+    const order = createOrder({
+      items: newOrderItems.map(({ item, quantity }) => ({
+        menuId: item.id,
+        name: menuName(item, locale),
+        quantity,
+        price: item.price,
+      })),
+      total: newOrderTotal,
+      pickupTime: newOrderForm.pickupDate,
+      address: newOrderForm.address.trim(),
+      contact: [newOrderForm.contactName.trim(), newOrderForm.contactNumber.trim()]
+        .filter(Boolean)
+        .join(" - "),
+      notes: newOrderForm.notes.trim(),
+      paid: newOrderForm.paid,
+    });
+
+    if (newOrderForm.status === "accepted") {
+      updateOrderStatus(order.id, "accepted");
+    }
+
+    setOrders(getOrders());
+    setShowCreateOrder(false);
+    setNewOrderForm(emptyNewOrderForm(menu));
   }
 
   function updateMenuForm<K extends keyof MenuFormState>(
@@ -342,6 +463,10 @@ function AdminDashboard() {
                   setLoggedIn(false);
                   setPassword("");
                   setActiveTab("dashboard");
+                  localStorage.removeItem(AUTH_KEY);
+                  try {
+                    localStorage.removeItem("ordering_route_state");
+                  } catch {}
                 }}
                 className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-stone-50"
               >
@@ -585,7 +710,16 @@ function AdminDashboard() {
 
           {activeTab === "orders" ? (
             <div className="mt-8">
-              <h2 className="text-2xl font-bold">{t("admin.orderManagement")}</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-2xl font-bold">{t("admin.orderManagement")}</h2>
+                <button
+                  type="button"
+                  onClick={openCreateOrder}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  + {t("admin.addOrder")}
+                </button>
+              </div>
               <div className="mt-5 overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">
                 {orders.length === 0 ? (
                   <p className="p-5 text-stone-600">{t("order.noOrders")}</p>
@@ -604,6 +738,15 @@ function AdminDashboard() {
                               >
                                 {t(`order.${order.status}`)}
                               </span>
+                              {order.paid ? (
+                                <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
+                                  {t("order.paid")}
+                                </span>
+                              ) : order.status !== "cancelled" ? (
+                                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+                                  {t("order.unpaid")}
+                                </span>
+                              ) : null}
                             </div>
                             <p className="mt-2 text-sm text-stone-600">
                               {order.items
@@ -659,6 +802,22 @@ function AdminDashboard() {
                             </p>
                           </div>
                           <div className="flex flex-wrap items-start gap-2 xl:justify-end">
+                            {order.status !== "cancelled" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateOrderPaymentStatus(order.id, !order.paid);
+                                  setOrders(getOrders());
+                                }}
+                                className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                                  order.paid
+                                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                                    : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                                }`}
+                              >
+                                {order.paid ? t("order.paid") : t("order.unpaid")}
+                              </button>
+                            )}
                             {order.status === "pending" ? (
                               <>
                                 <button
@@ -742,7 +901,6 @@ function AdminDashboard() {
               <RoutePlanner
                 orders={orders}
                 restaurantAddress={settings.pickupAddress}
-                locale={locale}
                 t={t}
               />
             </section>
@@ -901,6 +1059,210 @@ function AdminDashboard() {
                 >
                   {t("admin.save")}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {showCreateOrder ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/40 px-4 py-8">
+          <div className="mx-auto max-w-4xl rounded-lg bg-white p-6 shadow-xl">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-2xl font-bold">{t("admin.createOrder")}</h2>
+              <button
+                type="button"
+                onClick={() => setShowCreateOrder(false)}
+                className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-semibold hover:bg-stone-50"
+              >
+                {t("admin.cancel")}
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateOrder} className="mt-6 grid gap-5">
+              <div className="grid gap-4 md:grid-cols-3">
+                <TextField
+                  label={t("admin.name")}
+                  value={newOrderForm.contactName}
+                  onChange={(value) =>
+                    setNewOrderForm((current) => ({
+                      ...current,
+                      contactName: value,
+                    }))
+                  }
+                  required
+                />
+                <TextField
+                  label={t("menu.contact")}
+                  value={newOrderForm.contactNumber}
+                  onChange={(value) =>
+                    setNewOrderForm((current) => ({
+                      ...current,
+                      contactNumber: value,
+                    }))
+                  }
+                  required
+                />
+                <TextField
+                  label={t("menu.selectTime")}
+                  type="date"
+                  value={newOrderForm.pickupDate}
+                  onChange={(value) =>
+                    setNewOrderForm((current) => ({
+                      ...current,
+                      pickupDate: value,
+                    }))
+                  }
+                  required
+                />
+              </div>
+
+              <TextField
+                label={t("menu.address")}
+                value={newOrderForm.address}
+                onChange={(value) =>
+                  setNewOrderForm((current) => ({ ...current, address: value }))
+                }
+                required
+              />
+
+              <TextArea
+                label={t("menu.notes")}
+                value={newOrderForm.notes}
+                onChange={(value) =>
+                  setNewOrderForm((current) => ({ ...current, notes: value }))
+                }
+              />
+
+              <div className="rounded-lg border border-stone-200 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">{t("admin.orderItems")}</h3>
+                    <p className="mt-1 text-sm text-stone-500">
+                      {t("admin.selectItems")}
+                    </p>
+                  </div>
+                  <p className="text-lg font-bold">{formatCurrency(newOrderTotal)}</p>
+                </div>
+
+                <div className="mt-4 divide-y divide-stone-200 rounded-lg border border-stone-200">
+                  {menu.map((item) => {
+                    const line = newOrderForm.items[item.id] ?? {
+                      selected: false,
+                      quantity: "1",
+                    };
+                    return (
+                      <div
+                        key={item.id}
+                        className="grid gap-3 p-3 sm:grid-cols-[1fr_120px_110px]"
+                      >
+                        <label className="flex min-w-0 items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={line.selected}
+                            onChange={(event) =>
+                              updateNewOrderItem(item.id, {
+                                selected: event.target.checked,
+                              })
+                            }
+                            className="h-4 w-4 accent-stone-950"
+                          />
+                          <span className="truncate text-sm font-semibold">
+                            {menuName(item, locale)}
+                          </span>
+                        </label>
+                        <p className="text-sm font-semibold text-stone-700 sm:text-right">
+                          {formatCurrency(item.price)}
+                        </p>
+                        <input
+                          type="number"
+                          min="1"
+                          value={line.quantity}
+                          disabled={!line.selected}
+                          onChange={(event) =>
+                            updateNewOrderItem(item.id, {
+                              quantity: event.target.value,
+                            })
+                          }
+                          className="h-10 rounded-lg border border-stone-300 px-3 text-sm outline-none focus:border-amber-700 disabled:bg-stone-100 disabled:text-stone-400"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg border border-stone-200 p-4">
+                  <p className="text-sm font-semibold text-stone-700">
+                    {t("admin.statusLabel")}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(["pending", "accepted"] as const).map((status) => (
+                      <label
+                        key={status}
+                        className="flex items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                      >
+                        <input
+                          type="radio"
+                          checked={newOrderForm.status === status}
+                          onChange={() =>
+                            setNewOrderForm((current) => ({
+                              ...current,
+                              status,
+                            }))
+                          }
+                          className="h-4 w-4 accent-stone-950"
+                        />
+                        <span>{t(`order.${status}`)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-stone-200 p-4">
+                  <p className="text-sm font-semibold text-stone-700">
+                    {t("order.paymentStatus")}
+                  </p>
+                  <label className="mt-3 flex w-fit items-center gap-3 rounded-lg border border-stone-200 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={newOrderForm.paid}
+                      onChange={(event) =>
+                        setNewOrderForm((current) => ({
+                          ...current,
+                          paid: event.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 accent-stone-950"
+                    />
+                    <span className="text-sm font-semibold">
+                      {newOrderForm.paid ? t("order.paid") : t("order.unpaid")}
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-5">
+                <p className="text-xl font-bold">
+                  {t("order.total")}: {formatCurrency(newOrderTotal)}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateOrder(false)}
+                    className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold hover:bg-stone-50"
+                  >
+                    {t("admin.cancel")}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={newOrderItems.length === 0}
+                    className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-stone-300"
+                  >
+                    {t("admin.createOrder")}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
