@@ -9,6 +9,8 @@ RUN npm ci --only=production
 # Build the app
 FROM base AS builder
 WORKDIR /app
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
