@@ -116,7 +116,7 @@ export default function RoutePlanner({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
     const saved = loadSavedRouteState();
     if (saved?.selectedIds?.length) return new Set(saved.selectedIds);
-    return new Set(orders.filter((o) => o.status === "accepted").map((o) => o.id));
+    return new Set();
   });
   const [routeResult, setRouteResult] = useState<RouteResult | null>(() => {
     const saved = loadSavedRouteState();

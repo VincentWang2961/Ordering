@@ -104,7 +104,7 @@ function emptyNewOrderForm(items: MenuItem[]): NewOrderFormState {
     contactNumber: "",
     pickupDate: tomorrowDate(),
     notes: "",
-    status: "pending",
+    status: "accepted",
     paid: false,
     items: Object.fromEntries(
       items.map((item) => [item.id, { selected: false, quantity: "1" }])
@@ -342,6 +342,24 @@ function AdminDashboard() {
   async function handleCreateOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (newOrderItems.length === 0) return;
+
+    // Validate address via geocoding before creating order
+    setError("");
+    try {
+      const geoRes = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: newOrderForm.address.trim() }),
+      });
+      const geoData = await geoRes.json();
+      if (!geoRes.ok) {
+        setError(t("route.addressInvalid"));
+        return;
+      }
+    } catch {
+      setError("Address validation failed. Check the address and try again.");
+      return;
+    }
 
     const order = await createOrder({
       items: newOrderItems.map(({ item, quantity }) => ({
@@ -1188,7 +1206,6 @@ function AdminDashboard() {
                       contactName: value,
                     }))
                   }
-                  required
                 />
                 <TextField
                   label={t("menu.contact")}
@@ -1199,7 +1216,6 @@ function AdminDashboard() {
                       contactNumber: value,
                     }))
                   }
-                  required
                 />
                 <TextField
                   label={t("menu.selectTime")}

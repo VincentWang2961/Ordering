@@ -139,8 +139,12 @@ async function calculateGoogleRoute(
   orderLabels: string[],
   endAddress?: string
 ): Promise<RouteResult> {
-  const destinationAddress = endAddress || orderAddresses[orderAddresses.length - 1];
-  const res = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+    const destinationAddress = endAddress || orderAddresses[orderAddresses.length - 1];
+    // Filter out destination from intermediates to avoid duplicates
+    const intermediates = orderAddresses
+      .filter((addr) => addr !== destinationAddress)
+      .map((address) => ({ address }));
+    const res = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -151,7 +155,7 @@ async function calculateGoogleRoute(
     body: JSON.stringify({
       origin: { address: restaurantAddress },
       destination: { address: destinationAddress },
-      intermediates: orderAddresses.map((address) => ({ address })),
+      intermediates,
       travelMode: "DRIVE",
       optimizeWaypointOrder: true,
     }),

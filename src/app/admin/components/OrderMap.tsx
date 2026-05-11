@@ -174,7 +174,6 @@ export default function OrderMap({
             onClick={() => {
               onToggleOrder(order.id);
               setShowRestaurantInfo(false);
-              setActiveOrderId(order.id);
             }}
           />
         ))}
