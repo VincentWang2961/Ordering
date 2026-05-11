@@ -633,9 +633,15 @@ export default function RoutePlanner({
                       <div className="mt-3 flex gap-2 border-t border-stone-100 pt-3">
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.preventDefault();
                             updateOrderStatus(orderMatch.id, "delivered");
-                            calculateRoute();
+                            setRouteResult(null);
+                            setSelectedIds((prev) => {
+                              const next = new Set(prev);
+                              next.delete(orderMatch.id);
+                              return next;
+                            });
                           }}
                           className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
                         >
@@ -643,9 +649,15 @@ export default function RoutePlanner({
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.preventDefault();
                             updateOrderStatus(orderMatch.id, "cancelled");
-                            calculateRoute();
+                            setRouteResult(null);
+                            setSelectedIds((prev) => {
+                              const next = new Set(prev);
+                              next.delete(orderMatch.id);
+                              return next;
+                            });
                           }}
                           className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
                         >
