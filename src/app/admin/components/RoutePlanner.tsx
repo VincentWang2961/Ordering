@@ -28,13 +28,45 @@ interface RouteResult {
 
 const STOP_ICONS = ["🏁", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
 
+const PER_STOP_LOADING_MIN = 5;
+
+function haversineDistance(a: LatLng, b: LatLng): number {
+  const R = 6371; // km
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLng = Math.sin(dLng / 2);
+  const aVal =
+    sinDLat * sinDLat +
+    Math.cos((a.lat * Math.PI) / 180) *
+      Math.cos((b.lat * Math.PI) / 180) *
+      sinDLng * sinDLng;
+  return R * 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+}
+
+function parseDurationToMinutes(duration: string): number {
+  const parts = duration.split(" ");
+  let mins = 0;
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] === "hr" || parts[i] === "hour") {
+      mins += parseInt(parts[i - 1]) * 60;
+    } else if (parts[i] === "min") {
+      mins += parseInt(parts[i - 1]);
+    }
+  }
+  return mins;
+}
+
+function formatMinutes(mins: number): string {
+  if (mins < 60) return `${mins} min`;
+  return `${Math.floor(mins / 60)} hr ${mins % 60} min`;
+}
+
 function buildGoogleMapsUrl(stops: RouteStop[], fromRestaurant = false): string {
   if (fromRestaurant) {
-    // From restaurant as origin
     const parts = stops.map((s) => encodeURIComponent(s.address));
     return `https://www.google.com/maps/dir/${parts.join("/")}`;
   }
-  // Empty origin so Google Maps uses current location as starting point
   const deliveryStops = stops.slice(1);
   if (deliveryStops.length === 0) return "";
   const parts = deliveryStops.map((s) => encodeURIComponent(s.address));
@@ -56,6 +88,9 @@ export default function RoutePlanner({
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [restaurantLatLng, setRestaurantLatLng] = useState<LatLng | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
 
   // Auto-select accepted orders
   useEffect(() => {
@@ -73,6 +108,77 @@ export default function RoutePlanner({
       else next.add(id);
       return next;
     });
+  }
+
+  async function geocodeRestaurant() {
+    if (restaurantLatLng) return restaurantLatLng;
+    setGeoLoading(true);
+    try {
+      const res = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: restaurantAddress }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Geocoding failed");
+      const ll = { lat: data.lat, lng: data.lng };
+      setRestaurantLatLng(ll);
+      return ll;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Geocoding failed");
+      return null;
+    } finally {
+      setGeoLoading(false);
+    }
+  }
+
+  async function autoSelectByQuantity(n: number) {
+    setError("");
+    setRouteResult(null);
+
+    // Get restaurant lat/lng (geocode if needed)
+    let origin = restaurantLatLng;
+    if (!origin) {
+      origin = await geocodeRestaurant();
+      if (!origin) return;
+    }
+
+    // Filter orders that have lat/lng data
+    const ordersWithCoords = acceptedOrders.filter(
+      (o) => o.lat != null && o.lng != null
+    );
+    const withoutCoords = acceptedOrders.filter(
+      (o) => o.lat == null || o.lng == null
+    );
+
+    if (ordersWithCoords.length === 0) {
+      setError(t("route.selectAtLeastOne"));
+      return;
+    }
+
+    // Sort by haversine distance from restaurant
+    const sorted = [...ordersWithCoords].sort((a, b) => {
+      const distA = haversineDistance(origin!, { lat: a.lat!, lng: a.lng! });
+      const distB = haversineDistance(origin!, { lat: b.lat!, lng: b.lng! });
+      return distA - distB;
+    });
+
+    // Take top N
+    const count = Math.min(n, sorted.length);
+    const selected = sorted.slice(0, count);
+
+    // Also include orders without coords (by distance from restaurant if we've geocoded)
+    const newSelected = new Set(selected.map((o) => o.id));
+    if (withoutCoords.length > 0 && count < n) {
+      // We can't sort without coords so just add them up to fill the quantity
+      for (const o of withoutCoords) {
+        if (newSelected.size >= n) break;
+        newSelected.add(o.id);
+      }
+    }
+
+    setSelectedIds(newSelected);
+    setQuantity(String(count));
   }
 
   async function calculateRoute() {
@@ -110,6 +216,17 @@ export default function RoutePlanner({
     }
   }
 
+  // --- Compute adjusted duration ---
+  let adjustedDuration: string | null = null;
+  let adjustedDetail: string | null = null;
+  if (routeResult) {
+    const drivingMins = parseDurationToMinutes(routeResult.totalDuration);
+    const deliveryStops = routeResult.stops.length - 1; // exclude restaurant (stop 0)
+    const totalMins = drivingMins + deliveryStops * PER_STOP_LOADING_MIN;
+    adjustedDuration = formatMinutes(totalMins);
+    adjustedDetail = `${formatMinutes(drivingMins)} driving + ${deliveryStops} stops × ${PER_STOP_LOADING_MIN} min`;
+  }
+
   const gmapsUrlCurrent = routeResult
     ? buildGoogleMapsUrl(routeResult.stops, false)
     : null;
@@ -128,6 +245,46 @@ export default function RoutePlanner({
           {t("route.startPoint")}
         </h3>
         <p className="mt-2 font-medium text-stone-950">{restaurantAddress}</p>
+      </div>
+
+      {/* Feature 1: Quantity-based auto-select */}
+      <div className="mt-4 rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-stone-700">
+          {t("route.autoSelect")}
+        </h3>
+        <div className="mt-3 flex items-center gap-3">
+          <input
+            type="number"
+            min={1}
+            max={acceptedOrders.length}
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            onBlur={() => {
+              const n = parseInt(quantity);
+              if (n > 0 && n <= acceptedOrders.length) {
+                autoSelectByQuantity(n);
+              }
+            }}
+            placeholder="0"
+            className="h-10 w-24 rounded-lg border border-stone-300 px-3 text-sm outline-none focus:border-amber-700"
+          />
+          <span className="text-sm text-stone-500">
+            {t("route.enterQuantity")}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              const n = parseInt(quantity);
+              if (n > 0 && n <= acceptedOrders.length) {
+                autoSelectByQuantity(n);
+              }
+            }}
+            disabled={geoLoading || !quantity || parseInt(quantity) <= 0}
+            className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-stone-300"
+          >
+            {geoLoading ? "…" : t("route.autoSelectBtn")}
+          </button>
+        </div>
       </div>
 
       {/* Order selection */}
@@ -211,15 +368,33 @@ export default function RoutePlanner({
                 </p>
               </div>
             </div>
+            {/* Feature 2: Raw driving time */}
             <div className="flex items-center gap-2">
-              <span className="text-lg">⏱</span>
+              <span className="text-lg">🚗</span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                  {t("route.estimatedTime")}
+                  {t("route.estimatedTimeRaw")}
                 </p>
                 <p className="text-lg font-bold text-emerald-900">
                   {routeResult.totalDuration}
                 </p>
+              </div>
+            </div>
+            {/* Feature 2: Adjusted duration (with stops) */}
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⏱</span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                  {t("route.estimatedTimeAdjusted")}
+                </p>
+                <p className="text-lg font-bold text-emerald-900">
+                  {adjustedDuration}
+                </p>
+                {adjustedDetail && (
+                  <p className="mt-1 text-xs text-emerald-600">
+                    {adjustedDetail}
+                  </p>
+                )}
               </div>
             </div>
             {routeResult._mock && (
@@ -280,7 +455,6 @@ export default function RoutePlanner({
             </h3>
             <div className="mt-3 space-y-3">
               {routeResult.stops.map((stop, i) => {
-                // Find matching order from label: "#orderId — contact"
                 const orderMatch = acceptedOrders.find((o) =>
                   stop.label.startsWith(`#${o.id}`)
                 );
@@ -357,7 +531,6 @@ export default function RoutePlanner({
                           type="button"
                           onClick={() => {
                             updateOrderStatus(orderMatch.id, "delivered");
-                            // Refresh: force re-render by recalculating
                             calculateRoute();
                           }}
                           className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"

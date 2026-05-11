@@ -138,7 +138,13 @@
     "navFromHere": "从我的位置出发导航",
     "navFromRestaurant": "从餐厅出发导航",
     "markDelivered": "✓ 已送达",
-    "markException": "✗ 异常"
+    "markException": "✗ 异常",
+    "autoSelect": "按数量自动选择",
+    "autoSelectBtn": "自动选择",
+    "enterQuantity": "订单数",
+    "estimatedTimeRaw": "驾驶时间",
+    "estimatedTimeAdjusted": "预估总时间（含停靠）",
+    "adjustedDetail": "驾驶{driving} + 装卸{stops}分钟（{count}站×5分钟）"
   },
   "address": {
     "verifying": "正在验证地址",

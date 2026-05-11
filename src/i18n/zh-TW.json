@@ -138,7 +138,13 @@
     "navFromHere": "從我的位置出發導航",
     "navFromRestaurant": "從餐廳出發導航",
     "markDelivered": "✓ 已送達",
-    "markException": "✗ 異常"
+    "markException": "✗ 異常",
+    "autoSelect": "按數量自動選擇",
+    "autoSelectBtn": "自動選擇",
+    "enterQuantity": "訂單數",
+    "estimatedTimeRaw": "駕駛時間",
+    "estimatedTimeAdjusted": "預估總時間（含停靠）",
+    "adjustedDetail": "駕駛{driving} + 裝卸{stops}分鐘（{count}站×5分鐘）"
   },
   "address": {
     "verifying": "正在驗證地址",
