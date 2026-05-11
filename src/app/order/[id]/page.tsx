@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { LangProvider, useLang } from "../../../contexts/LangContext";
-import { getOrder } from "../../../data/store";
+import { getOrderAsync } from "../../../data/store";
+import type { Order } from "../../../data/types";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-AU", {
@@ -15,7 +17,22 @@ function formatCurrency(amount: number) {
 function OrderDetails() {
   const params = useParams<{ id: string }>();
   const { t } = useLang();
-  const order = getOrder(params.id);
+  const [order, setOrder] = useState<Order | undefined>();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    getOrderAsync(params.id)
+      .then((nextOrder) => {
+        if (!cancelled) setOrder(nextOrder);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id]);
 
   return (
     <>
@@ -25,7 +42,11 @@ function OrderDetails() {
           {t("common.back")}
         </Link>
         <section className="mt-6 rounded-3xl bg-white p-6 shadow-xl shadow-amber-900/10 sm:p-8">
-          {order ? (
+          {loading ? (
+            <div className="py-12 text-center">
+              <h1 className="text-2xl font-bold">Loading...</h1>
+            </div>
+          ) : order ? (
             <>
               <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-200 pb-5">
                 <div>

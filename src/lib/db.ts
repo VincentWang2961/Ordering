@@ -1,5 +1,5 @@
 // Database connection pool for PostgreSQL
-import { Pool } from "pg";
+import { Pool, PoolClient } from "pg";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -18,8 +18,8 @@ export async function query(text: string, params?: unknown[]) {
   return result;
 }
 
-export async function setAuditUser(userId: string) {
-  await pool.query(`SET LOCAL app.current_user_id = '${userId}'`);
+export async function setAuditUser(userId: string, client: Pool | PoolClient = pool) {
+  await client.query("SELECT set_config('app.current_user_id', $1, true)", [userId]);
 }
 
 export default pool;

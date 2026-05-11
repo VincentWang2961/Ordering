@@ -1,10 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { LangProvider, useLang } from "../contexts/LangContext";
-import { createOrder, getOrders, loadMenu, loadSettings } from "../data/store";
-import type { MenuItem, Order } from "../data/types";
+import {
+  createOrder,
+  getOrdersAsync,
+  loadMenuAsync,
+  loadSettings,
+  loadSettingsAsync,
+} from "../data/store";
+import type { MenuItem, Order, RestaurantSettings } from "../data/types";
 import AddressInput from "./components/AddressInput";
 
 type CartLine = {
@@ -57,10 +63,7 @@ function itemDescription(item: MenuItem, locale: string) {
   return item.description;
 }
 
-function settingsName(
-  settings: ReturnType<typeof loadSettings>,
-  locale: string
-) {
+function settingsName(settings: RestaurantSettings, locale: string) {
   if (locale === "zh-CN") return settings.nameZhCN || settings.name;
   if (locale === "zh-TW") return settings.nameZhTW || settings.name;
   return settings.name;
@@ -79,7 +82,9 @@ function formatDateTime(isoString: string): string {
 function CustomerHome() {
   const { locale, setLocale, t } = useLang();
   const [settings] = useState(() => loadSettings());
-  const [menu] = useState(() => loadMenu().filter((item) => item.published));
+  const [menu, setMenu] = useState<MenuItem[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [liveSettings, setLiveSettings] = useState(settings);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
@@ -96,7 +101,22 @@ function CustomerHome() {
     (sum, line) => sum + line.item.price * line.quantity,
     0
   );
-  const orderHistory = orderHistoryOpen ? getOrders() : [];
+  const orderHistory = orderHistoryOpen ? orders : [];
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([loadSettingsAsync(), loadMenuAsync(), getOrdersAsync()])
+      .then(([nextSettings, nextMenu, nextOrders]) => {
+        if (cancelled) return;
+        setLiveSettings(nextSettings);
+        setMenu(nextMenu.filter((item) => item.published));
+        setOrders(nextOrders);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const categories = useMemo(
     () => Array.from(new Set(menu.map((item) => item.category))),
@@ -147,7 +167,7 @@ function CustomerHome() {
       ...existingCart,
       { item: selectedItem, quantity },
     ];
-    placeOrder(orderCart);
+    void placeOrder(orderCart);
   }
 
   function handleCartOrder(event: FormEvent<HTMLFormElement>) {
@@ -159,15 +179,15 @@ function CustomerHome() {
       return;
     }
 
-    placeOrder(cart);
+    void placeOrder(cart);
   }
 
-  function placeOrder(lines: CartLine[]) {
+  async function placeOrder(lines: CartLine[]) {
     const total = lines.reduce(
       (sum, line) => sum + line.item.price * line.quantity,
       0
     );
-    const order = createOrder({
+    const order = await createOrder({
       items: lines.map((line) => ({
         menuId: line.item.id,
         name: itemName(line.item, locale),
@@ -184,6 +204,7 @@ function CustomerHome() {
     });
 
     setCreatedOrder(order);
+    setOrders(await getOrdersAsync());
     setCart([]);
     setSelectedItem(null);
     setCartOpen(false);
@@ -200,7 +221,7 @@ function CustomerHome() {
       <header className="sticky top-0 z-30 border-b border-amber-900/10 bg-[#faf5ed]/95 backdrop-blur">
         <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Link href="/" className="text-xl font-semibold text-amber-950">
-            {settingsName(settings, locale)}
+            {settingsName(liveSettings, locale)}
           </Link>
           <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
             <div className="flex rounded-full border border-amber-900/15 bg-white p-1">
@@ -239,7 +260,7 @@ function CustomerHome() {
       <section className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-16">
         <div className="flex flex-col justify-center">
           <p className="mb-4 w-fit rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-900">
-            {settings.contact}
+            {liveSettings.contact}
           </p>
           <h1 className="text-5xl font-bold tracking-tight text-stone-950 sm:text-7xl">
             Ordering
@@ -389,7 +410,7 @@ function CustomerHome() {
                     setVerifiedLat(lat);
                     setVerifiedLng(lng);
                   }}
-                  placeholder={settings.pickupAddress}
+                  placeholder={liveSettings.pickupAddress}
                   t={t}
                 />
               </label>
@@ -519,7 +540,7 @@ function CustomerHome() {
                   setVerifiedLat(lat);
                   setVerifiedLng(lng);
                 }}
-                placeholder={settings.pickupAddress}
+                placeholder={liveSettings.pickupAddress}
                 t={t}
               />
               <textarea

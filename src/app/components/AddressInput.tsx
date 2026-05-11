@@ -44,10 +44,14 @@ export default function AddressInput({
 
     const trimmed = value.trim();
     if (trimmed.length < 3) {
-      setStatus("idle");
-      setCoords(null);
-      onVerified(null, null);
-      return;
+      debounceRef.current = setTimeout(() => {
+        setStatus("idle");
+        setCoords(null);
+        onVerified(null, null);
+      }, 0);
+      return () => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+      };
     }
 
     // Skip re-validation if address hasn't changed since last valid lookup
@@ -55,9 +59,8 @@ export default function AddressInput({
       return;
     }
 
-    setStatus("loading");
-
     debounceRef.current = setTimeout(async () => {
+      setStatus("loading");
       try {
         const res = await fetch("/api/geocode", {
           method: "POST",

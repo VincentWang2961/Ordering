@@ -38,7 +38,6 @@ type DisplayOrder = Order & {
 };
 
 const ROUTE_STATE_KEY = "ordering_route_state";
-const ORDERS_KEY = "ordering_orders";
 const STOP_LABELS = ["Start", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
 
 const PER_STOP_LOADING_MIN = 5;
@@ -102,20 +101,6 @@ function buildGoogleMapsUrl(stops: RouteStop[], fromRestaurant = false): string 
 
 function getDisplayOrders(): DisplayOrder[] {
   return getOrders() as DisplayOrder[];
-}
-
-function saveDeliveryComment(id: string, deliveredComment: string) {
-  if (typeof window === "undefined") return;
-  const trimmed = deliveredComment.trim();
-  const nextOrders = getDisplayOrders().map((order) =>
-    order.id === id
-      ? {
-          ...order,
-          deliveredComment: trimmed || undefined,
-        }
-      : order
-  );
-  localStorage.setItem(ORDERS_KEY, JSON.stringify(nextOrders));
 }
 
 export default function RoutePlanner({
@@ -184,15 +169,15 @@ export default function RoutePlanner({
     setDeliverPaid(false);
   }
 
-  function confirmDelivery() {
+  async function confirmDelivery() {
     if (!deliveryModal) return;
-    updateOrderStatus(
+    await updateOrderStatus(
       deliveryModal.orderId,
       "delivered",
       deliverPhoto || undefined,
       deliverComment.trim() || undefined
     );
-    updateOrderPaymentStatus(deliveryModal.orderId, deliverPaid);
+    await updateOrderPaymentStatus(deliveryModal.orderId, deliverPaid);
     refreshDisplayOrders();
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -719,9 +704,9 @@ export default function RoutePlanner({
                         </button>
                         <button
                           type="button"
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.preventDefault();
-                            updateOrderStatus(orderMatch.id, "cancelled");
+                            await updateOrderStatus(orderMatch.id, "cancelled");
                             refreshDisplayOrders();
                             setRouteResult(null);
                             setSelectedIds((prev) => {

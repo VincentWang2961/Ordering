@@ -1,20 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { LangProvider, useLang } from "../../contexts/LangContext";
 import {
   createOrder,
-  getOrders,
+  getOrdersAsync,
   loadMenu,
+  loadMenuAsync,
   loadSettings,
+  loadSettingsAsync,
+  migrateLocalStorageToDB,
   saveMenu,
   saveSettings,
   updateOrderPaymentStatus,
   updateOrderStatus,
   updateOrderFields,
 } from "../../data/store";
-import { MenuItem, Order } from "../../data/types";
+import { MenuItem, Order, RestaurantSettings } from "../../data/types";
 import RoutePlanner from "./components/RoutePlanner";
 import KitchenView from "./components/KitchenView";
 
@@ -149,7 +152,7 @@ function menuName(item: MenuItem, locale: string) {
   return item.name;
 }
 
-function settingsName(settings: ReturnType<typeof loadSettings>, locale: string) {
+function settingsName(settings: RestaurantSettings, locale: string) {
   if (locale === "zh-CN") return settings.nameZhCN || settings.name;
   if (locale === "zh-TW") return settings.nameZhTW || settings.name;
   return settings.name;
@@ -197,9 +200,11 @@ function AdminDashboard() {
   });
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
-  const [menu, setMenu] = useState<MenuItem[]>(() => loadMenu());
-  const [orders, setOrders] = useState<Order[]>(() => getOrders());
+  const [menu, setMenu] = useState<MenuItem[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState(() => loadSettings());
+  const [dataLoading, setDataLoading] = useState(loggedIn);
+  const [dataError, setDataError] = useState("");
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [menuForm, setMenuForm] = useState<MenuFormState | null>(null);
@@ -209,8 +214,38 @@ function AdminDashboard() {
   const [editOrderForm, setEditOrderForm] = useState({ pickupTime: "", address: "", contact: "", notes: "" });
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [newOrderForm, setNewOrderForm] = useState<NewOrderFormState>(() =>
-    emptyNewOrderForm(loadMenu())
+    emptyNewOrderForm([])
   );
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    let cancelled = false;
+    migrateLocalStorageToDB()
+      .catch((err) => {
+        if (!cancelled) {
+          setDataError(err instanceof Error ? err.message : "Failed to migrate local data");
+        }
+      })
+      .then(() => Promise.all([loadMenuAsync(), getOrdersAsync(), loadSettingsAsync()]))
+      .then(([nextMenu, nextOrders, nextSettings]) => {
+        if (cancelled) return;
+        setMenu(nextMenu);
+        setOrders(nextOrders);
+        setSettings(nextSettings);
+        setNewOrderForm(emptyNewOrderForm(nextMenu));
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setDataError(err instanceof Error ? err.message : "Failed to load admin data");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDataLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loggedIn]);
 
   const pendingOrders = orders.filter((order) => order.status === "pending");
   const publishedItems = menu.filter((item) => item.published);
@@ -233,42 +268,39 @@ function AdminDashboard() {
     [menu]
   );
 
-  function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
-    fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: loginUsername, password }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          setError(t("admin.wrongPassword"));
-          return;
-        }
-        setLoggedIn(true);
-        setUser(data.user);
-        setMenu(loadMenu());
-        setOrders(getOrders());
-        setSettings(loadSettings());
-        localStorage.setItem(
-          AUTH_KEY,
-          JSON.stringify({
-            loggedInAt: new Date().toISOString(),
-            user: data.user,
-          })
-        );
-      })
-      .catch(() => {
-        setError("Login failed. Is the database running?");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: loginUsername, password }),
       });
+      const data = await res.json();
+      if (data.error) {
+        setError(t("admin.wrongPassword"));
+        return;
+      }
+      localStorage.setItem(
+        AUTH_KEY,
+        JSON.stringify({
+          loggedInAt: new Date().toISOString(),
+          user: data.user,
+        })
+      );
+      setLoggedIn(true);
+      setUser(data.user);
+    } catch {
+      setError("Login failed. Is the database running?");
+    }
   }
 
-  function persistMenu(nextMenu: MenuItem[]) {
+  async function persistMenu(nextMenu: MenuItem[]) {
     setMenu(nextMenu);
-    saveMenu(nextMenu);
+    await saveMenu(nextMenu);
+    setMenu(loadMenu());
   }
 
   function openNewItemForm() {
@@ -307,11 +339,11 @@ function AdminDashboard() {
     });
   }
 
-  function handleCreateOrder(event: FormEvent<HTMLFormElement>) {
+  async function handleCreateOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (newOrderItems.length === 0) return;
 
-    const order = createOrder({
+    const order = await createOrder({
       items: newOrderItems.map(({ item, quantity }) => ({
         menuId: item.id,
         name: menuName(item, locale),
@@ -329,10 +361,10 @@ function AdminDashboard() {
     });
 
     if (newOrderForm.status === "accepted") {
-      updateOrderStatus(order.id, "accepted");
+      await updateOrderStatus(order.id, "accepted");
     }
 
-    setOrders(getOrders());
+    setOrders(await getOrdersAsync());
     setShowCreateOrder(false);
     setNewOrderForm(emptyNewOrderForm(menu));
   }
@@ -357,7 +389,7 @@ function AdminDashboard() {
     });
   }
 
-  function handleSaveMenuItem(event: FormEvent<HTMLFormElement>) {
+  async function handleSaveMenuItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!menuForm) return;
 
@@ -384,18 +416,18 @@ function AdminDashboard() {
     const nextMenu = editingItem
       ? menu.map((current) => (current.id === editingItem.id ? item : current))
       : [item, ...menu];
-    persistMenu(nextMenu);
+    await persistMenu(nextMenu);
     closeMenuForm();
   }
 
-  function handleDeleteItem(item: MenuItem) {
+  async function handleDeleteItem(item: MenuItem) {
     if (!window.confirm(t("admin.confirmDelete"))) return;
-    persistMenu(menu.filter((current) => current.id !== item.id));
+    await persistMenu(menu.filter((current) => current.id !== item.id));
   }
 
-  function handleOrderStatus(id: string, status: "accepted" | "cancelled" | "delivered", photo?: string) {
-    updateOrderStatus(id, status, photo);
-    setOrders(getOrders());
+  async function handleOrderStatus(id: string, status: "accepted" | "cancelled" | "delivered", photo?: string) {
+    await updateOrderStatus(id, status, photo);
+    setOrders(await getOrdersAsync());
   }
 
   function openDeliverDialog(id: string) {
@@ -403,9 +435,9 @@ function AdminDashboard() {
     setDeliverPhoto("");
   }
 
-  function confirmDeliver() {
+  async function confirmDeliver() {
     if (!deliveringId) return;
-    handleOrderStatus(deliveringId, "delivered", deliverPhoto || undefined);
+    await handleOrderStatus(deliveringId, "delivered", deliverPhoto || undefined);
     setDeliveringId(null);
     setDeliverPhoto("");
   }
@@ -420,17 +452,18 @@ function AdminDashboard() {
     });
   }
 
-  function saveEditOrder(e: FormEvent) {
+  async function saveEditOrder(e: FormEvent) {
     e.preventDefault();
     if (!editingOrder) return;
-    updateOrderFields(editingOrder.id, editOrderForm);
-    setOrders(getOrders());
+    await updateOrderFields(editingOrder.id, editOrderForm);
+    setOrders(await getOrdersAsync());
     setEditingOrder(null);
   }
 
-  function handleSettingsSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSettingsSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    saveSettings(settings);
+    await saveSettings(settings);
+    setSettings(loadSettings());
     setSettingsSaved(true);
     window.setTimeout(() => setSettingsSaved(false), 1800);
   }
@@ -591,6 +624,18 @@ function AdminDashboard() {
               ))}
             </div>
           </div>
+
+          {dataLoading ? (
+            <p className="mt-6 rounded-lg bg-white p-4 text-sm font-semibold text-stone-600">
+              Loading admin data...
+            </p>
+          ) : null}
+
+          {dataError ? (
+            <p className="mt-6 rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-700">
+              {dataError}
+            </p>
+          ) : null}
 
           {activeTab === "dashboard" ? (
             <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_380px]">
@@ -858,9 +903,9 @@ function AdminDashboard() {
                             {order.status !== "cancelled" && (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  updateOrderPaymentStatus(order.id, !order.paid);
-                                  setOrders(getOrders());
+                                onClick={async () => {
+                                  await updateOrderPaymentStatus(order.id, !order.paid);
+                                  setOrders(await getOrdersAsync());
                                 }}
                                 className={`rounded-lg px-3 py-2 text-sm font-semibold ${
                                   order.paid
