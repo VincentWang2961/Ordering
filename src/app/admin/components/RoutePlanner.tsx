@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import type { Order } from "../../../data/types";
-import { updateOrderStatus } from "../../../data/store";
+import {
+  getOrders,
+  updateOrderPaymentStatus,
+  updateOrderStatus,
+} from "../../../data/store";
 import RouteMap from "./RouteMap";
 
 interface LatLng {
@@ -29,7 +33,12 @@ interface RouteResult {
   _mock?: boolean;
 }
 
+type DisplayOrder = Order & {
+  deliveredComment?: string;
+};
+
 const ROUTE_STATE_KEY = "ordering_route_state";
+const ORDERS_KEY = "ordering_orders";
 const STOP_LABELS = ["Start", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
 
 const PER_STOP_LOADING_MIN = 5;
@@ -91,6 +100,24 @@ function buildGoogleMapsUrl(stops: RouteStop[], fromRestaurant = false): string 
   return `https://www.google.com/maps/dir//${parts.join("/")}`;
 }
 
+function getDisplayOrders(): DisplayOrder[] {
+  return getOrders() as DisplayOrder[];
+}
+
+function saveDeliveryComment(id: string, deliveredComment: string) {
+  if (typeof window === "undefined") return;
+  const trimmed = deliveredComment.trim();
+  const nextOrders = getDisplayOrders().map((order) =>
+    order.id === id
+      ? {
+          ...order,
+          deliveredComment: trimmed || undefined,
+        }
+      : order
+  );
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(nextOrders));
+}
+
 export default function RoutePlanner({
   orders,
   restaurantAddress,
@@ -111,6 +138,16 @@ export default function RoutePlanner({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [localOrderUpdates, setLocalOrderUpdates] = useState<
+    Record<string, DisplayOrder>
+  >({});
+  const [deliveryModal, setDeliveryModal] = useState<{
+    orderId: string;
+    contact: string;
+  } | null>(null);
+  const [deliverPhoto, setDeliverPhoto] = useState("");
+  const [deliverComment, setDeliverComment] = useState("");
+  const [deliverPaid, setDeliverPaid] = useState(false);
   const [quantity, setQuantity] = useState("");
   const [restaurantLatLng, setRestaurantLatLng] = useState<LatLng | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
@@ -124,7 +161,46 @@ export default function RoutePlanner({
     }
   });
 
-  const acceptedOrders = orders.filter((o) => o.status === "accepted");
+  const displayOrders = orders.map((order) => localOrderUpdates[order.id] || order);
+  const acceptedOrders = displayOrders.filter((o) => o.status === "accepted");
+
+  function refreshDisplayOrders() {
+    setLocalOrderUpdates(
+      Object.fromEntries(getDisplayOrders().map((order) => [order.id, order]))
+    );
+  }
+
+  function openDeliveryModal(order: DisplayOrder) {
+    setDeliveryModal({ orderId: order.id, contact: order.contact });
+    setDeliverPhoto("");
+    setDeliverComment(order.deliveredComment || "");
+    setDeliverPaid(order.paid);
+  }
+
+  function closeDeliveryModal() {
+    setDeliveryModal(null);
+    setDeliverPhoto("");
+    setDeliverComment("");
+    setDeliverPaid(false);
+  }
+
+  function confirmDelivery() {
+    if (!deliveryModal) return;
+    updateOrderStatus(
+      deliveryModal.orderId,
+      "delivered",
+      deliverPhoto || undefined
+    );
+    updateOrderPaymentStatus(deliveryModal.orderId, deliverPaid);
+    saveDeliveryComment(deliveryModal.orderId, deliverComment);
+    refreshDisplayOrders();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(deliveryModal.orderId);
+      return next;
+    });
+    closeDeliveryModal();
+  }
 
   function handleEndAddressChange(value: string) {
     setEndAddress(value);
@@ -273,7 +349,7 @@ export default function RoutePlanner({
   if (routeResult) {
     const drivingMins = parseDurationToMinutes(routeResult.totalDuration);
     const deliveryStops = routeResult.stops.filter((stop) =>
-      acceptedOrders.some((order) => stop.label.startsWith(`#${order.id}`))
+      displayOrders.some((order) => stop.label.startsWith(`#${order.id}`))
     ).length;
     const totalMins = drivingMins + deliveryStops * PER_STOP_LOADING_MIN;
     adjustedDuration = formatMinutes(totalMins);
@@ -538,7 +614,7 @@ export default function RoutePlanner({
             </h3>
             <div className="mt-3 space-y-3">
               {routeResult.stops.map((stop, i) => {
-                const orderMatch = acceptedOrders.find((o) =>
+                const orderMatch = displayOrders.find((o) =>
                   stop.label.startsWith(`#${o.id}`)
                 );
                 const isEndStop = Boolean(
@@ -635,13 +711,7 @@ export default function RoutePlanner({
                           type="button"
                           onClick={(e) => {
                             e.preventDefault();
-                            updateOrderStatus(orderMatch.id, "delivered");
-                            setRouteResult(null);
-                            setSelectedIds((prev) => {
-                              const next = new Set(prev);
-                              next.delete(orderMatch.id);
-                              return next;
-                            });
+                            openDeliveryModal(orderMatch);
                           }}
                           className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
                         >
@@ -652,6 +722,7 @@ export default function RoutePlanner({
                           onClick={(e) => {
                             e.preventDefault();
                             updateOrderStatus(orderMatch.id, "cancelled");
+                            refreshDisplayOrders();
                             setRouteResult(null);
                             setSelectedIds((prev) => {
                               const next = new Set(prev);
@@ -678,6 +749,25 @@ export default function RoutePlanner({
                         >
                           {t(`order.${orderMatch.status}`)}
                         </span>
+                        {orderMatch.status === "delivered" && (
+                          <div className="mt-3 space-y-2">
+                            {orderMatch.deliveredPhoto && (
+                              <img
+                                src={orderMatch.deliveredPhoto}
+                                alt={t("order.deliveredPhoto")}
+                                className="h-16 w-16 rounded-lg object-cover"
+                              />
+                            )}
+                            {orderMatch.deliveredComment && (
+                              <p className="text-xs text-stone-600">
+                                <span className="font-semibold text-stone-700">
+                                  {t("admin.deliveryNote")}:
+                                </span>{" "}
+                                {orderMatch.deliveredComment}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -689,6 +779,108 @@ export default function RoutePlanner({
                 Ends at: {endAddress}
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {deliveryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 px-4">
+          <div className="mx-auto w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-xl font-bold">{t("admin.markDelivered")}</h2>
+            <p className="mt-1 text-sm text-stone-600">
+              {deliveryModal.contact}
+            </p>
+
+            {deliverPhoto ? (
+              <div className="mt-4">
+                <img
+                  src={deliverPhoto}
+                  alt={t("admin.deliveryPhotoPreview")}
+                  className="mx-auto max-h-48 rounded-xl object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDeliverPhoto("")}
+                  className="mt-2 text-sm font-semibold text-red-600 hover:text-red-700"
+                >
+                  {t("admin.removePhoto")}
+                </button>
+              </div>
+            ) : (
+              <label className="mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 px-4 py-8 text-sm text-stone-600 hover:border-stone-400">
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                {t("admin.uploadPhoto")}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () =>
+                      setDeliverPhoto(reader.result as string);
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
+            )}
+
+            <div className="mt-4">
+              <label className="text-sm font-medium text-stone-700">
+                {t("admin.deliveryNoteOptional")}
+              </label>
+              <textarea
+                value={deliverComment}
+                onChange={(e) => setDeliverComment(e.target.value)}
+                rows={3}
+                placeholder={t("admin.deliveryNotePlaceholder")}
+                className="mt-1.5 w-full rounded-xl border border-stone-300 px-4 py-2 text-sm outline-none focus:border-amber-600"
+              />
+            </div>
+
+            <label className="mt-4 flex items-center gap-3 rounded-lg border border-stone-200 px-4 py-3">
+              <input
+                type="checkbox"
+                checked={deliverPaid}
+                onChange={(e) => setDeliverPaid(e.target.checked)}
+                className="h-5 w-5 accent-emerald-600"
+              />
+              <span className="text-sm font-semibold">
+                {deliverPaid
+                  ? t("admin.paymentCollected")
+                  : t("admin.paymentNotCollected")}
+              </span>
+            </label>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={closeDeliveryModal}
+                className="flex-1 rounded-xl border border-stone-300 px-4 py-3 text-sm font-semibold hover:bg-stone-50"
+              >
+                {t("admin.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelivery}
+                className="flex-1 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
+              >
+                {t("admin.confirmDeliver")}
+              </button>
+            </div>
           </div>
         </div>
       )}
