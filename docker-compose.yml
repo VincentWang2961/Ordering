@@ -8,3 +8,21 @@ services:
     restart: unless-stopped
     env_file:
       - .env.local
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    container_name: ordering-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ordering_user
+      POSTGRES_PASSWORD: OrderingDB2026!Secure
+      POSTGRES_DB: ordering_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ordering_pgdata:/var/lib/postgresql/data
+
+volumes:
+  ordering_pgdata:

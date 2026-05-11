@@ -171,6 +171,7 @@ function publishedBadgeClass(published: boolean) {
 function AdminDashboard() {
   const { locale, setLocale, t } = useLang();
   const [password, setPassword] = useState("");
+  const [loginUsername, setLoginUsername] = useState("");
   const [loggedIn, setLoggedIn] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -181,6 +182,17 @@ function AdminDashboard() {
       return elapsed < 30 * 24 * 60 * 60 * 1000;
     } catch {
       return false;
+    }
+  });
+  const [user, setUser] = useState<{ id: string; username: string; displayName: string; role: string } | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(AUTH_KEY);
+      if (!raw) return null;
+      const auth = JSON.parse(raw);
+      return auth.user || null;
+    } catch {
+      return null;
     }
   });
   const [error, setError] = useState("");
@@ -223,19 +235,35 @@ function AdminDashboard() {
 
   function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setLoggedIn(true);
-      setError("");
-      setMenu(loadMenu());
-      setOrders(getOrders());
-      setSettings(loadSettings());
-      localStorage.setItem(
-        AUTH_KEY,
-        JSON.stringify({ loggedInAt: new Date().toISOString() })
-      );
-      return;
-    }
-    setError(t("admin.wrongPassword"));
+    setError("");
+
+    fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: loginUsername, password }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          setError(t("admin.wrongPassword"));
+          return;
+        }
+        setLoggedIn(true);
+        setUser(data.user);
+        setMenu(loadMenu());
+        setOrders(getOrders());
+        setSettings(loadSettings());
+        localStorage.setItem(
+          AUTH_KEY,
+          JSON.stringify({
+            loggedInAt: new Date().toISOString(),
+            user: data.user,
+          })
+        );
+      })
+      .catch(() => {
+        setError("Login failed. Is the database running?");
+      });
   }
 
   function persistMenu(nextMenu: MenuItem[]) {
@@ -457,21 +485,33 @@ function AdminDashboard() {
               ))}
             </div>
             {loggedIn ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setLoggedIn(false);
-                  setPassword("");
-                  setActiveTab("dashboard");
-                  localStorage.removeItem(AUTH_KEY);
-                  try {
-                    localStorage.removeItem("ordering_route_state");
-                  } catch {}
-                }}
+              <>
+                {user && (
+                  <span className="text-sm font-semibold text-stone-600">
+                    {user.displayName}
+                    <span className="ml-1.5 rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-500">
+                      {user.role}
+                    </span>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoggedIn(false);
+                    setUser(null);
+                    setPassword("");
+                    setLoginUsername("");
+                    setActiveTab("dashboard");
+                    localStorage.removeItem(AUTH_KEY);
+                    try {
+                      localStorage.removeItem("ordering_route_state");
+                    } catch {}
+                  }}
                 className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-stone-50"
               >
                 {t("admin.logout")}
               </button>
+              </>
             ) : null}
           </div>
         </div>
@@ -479,33 +519,46 @@ function AdminDashboard() {
 
       {!loggedIn ? (
         <section className="mx-auto max-w-md px-4 py-16 sm:px-6">
-          <form
-            onSubmit={handleLogin}
-            className="rounded-lg border border-stone-200 bg-white p-8 shadow-sm"
-          >
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-amber-700">
-              {t("admin.title")}
-            </p>
-            <h1 className="mt-2 text-3xl font-bold">{t("admin.login")}</h1>
-            <label className="mt-8 block">
-              <span className="text-sm font-medium text-stone-700">
-                {t("admin.password")}
-              </span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="mt-2 h-12 w-full rounded-lg border border-stone-300 px-4 outline-none focus:border-amber-700 focus:ring-2 focus:ring-amber-100"
-              />
-            </label>
-            {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-            <button
-              type="submit"
-              className="mt-6 h-12 w-full rounded-lg bg-stone-950 px-5 font-semibold text-white hover:bg-stone-800"
+            <form
+              onSubmit={handleLogin}
+              className="rounded-lg border border-stone-200 bg-white p-8 shadow-sm"
             >
-              {t("admin.loginBtn")}
-            </button>
-          </form>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-amber-700">
+                {t("admin.title")}
+              </p>
+              <h1 className="mt-2 text-3xl font-bold">{t("admin.login")}</h1>
+              <label className="mt-8 block">
+                <span className="text-sm font-medium text-stone-700">
+                  Username
+                </span>
+                <input
+                  type="text"
+                  value={loginUsername}
+                  onChange={(event) => setLoginUsername(event.target.value)}
+                  placeholder="admin"
+                  className="mt-2 h-12 w-full rounded-lg border border-stone-300 px-4 outline-none focus:border-amber-700 focus:ring-2 focus:ring-amber-100"
+                />
+              </label>
+              <label className="mt-4 block">
+                <span className="text-sm font-medium text-stone-700">
+                  {t("admin.password")}
+                </span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="mt-2 h-12 w-full rounded-lg border border-stone-300 px-4 outline-none focus:border-amber-700 focus:ring-2 focus:ring-amber-100"
+                />
+              </label>
+              {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+              <button
+                type="submit"
+                disabled={!loginUsername || !password}
+                className="mt-6 h-12 w-full rounded-lg bg-stone-950 px-5 font-semibold text-white hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-400"
+              >
+                {t("admin.loginBtn")}
+              </button>
+            </form>
         </section>
       ) : (
         <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

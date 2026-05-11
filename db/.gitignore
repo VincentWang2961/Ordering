@@ -1,0 +1,4 @@
+# Database backups (auto-generated, not committed)
+/db/backups/*.sql.gz
+/db/backups/cron.log
+/db/backups/backup_manifest.txt
