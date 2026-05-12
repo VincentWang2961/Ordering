@@ -45,21 +45,12 @@ function buildStaticMapUrl(
 
   const allPoints = restaurantLatLng ? stops : stops;
 
-  const lats = allPoints.map((s) => s.lat);
-  const lngs = allPoints.map((s) => s.lng);
-  if (restaurantLatLng) {
-    lats.unshift(restaurantLatLng.lat);
-    lngs.unshift(restaurantLatLng.lng);
-  }
-  const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-  const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-
   const params = new URLSearchParams();
-  params.set("size", "600x400");
-  params.set("scale", "2");
+  params.set("size", "640x300");
   params.set("maptype", "roadmap");
-  params.set("center", `${centerLat},${centerLng}`);
   params.set("key", apiKey);
+
+  // Let Google auto-fit: don't set center or zoom when markers/path are provided
 
   if (restaurantLatLng) {
     params.append(
@@ -259,14 +250,16 @@ export default function RoutePDF({
         {/* Static Map */}
         {staticMapUrl && <Image src={staticMapUrl} style={styles.mapImage} />}
 
-        {/* Order List */}
-        <Text style={styles.sectionTitle}>Delivery Orders ({orderCount})</Text>
+        {/* Order List — start on a fresh page */}
+        <Text style={styles.sectionTitle} break>
+          Delivery Orders ({orderCount})
+        </Text>
 
         <View style={styles.orderGrid}>
           {stopsWithOrders.map((swo) => {
             const order = swo.order;
             return (
-              <View key={swo.stop.index} style={styles.orderCard}>
+              <View key={swo.stop.index} style={styles.orderCard} wrap={false}>
                 <Text style={styles.orderHeader}>
                   #{order?.id || swo.stop.label} — Stop {swo.stopNum}
                 </Text>
