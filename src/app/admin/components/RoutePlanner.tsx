@@ -4,13 +4,42 @@ import { useState } from "react";
 import type { Order } from "../../../data/types";
 import {
   getOrders,
-  updateOrderPaymentStatus,
   updateOrderStatus,
 } from "../../../data/store";
 import OrderMap from "./OrderMap";
 import RouteMap from "./RouteMap";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import RoutePDF from "./RoutePDF";
+
+// Compress image to max 800px on longest side, returns base64 data URL
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 800;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        if (width > height) {
+          height = Math.round((height / width) * MAX);
+          width = MAX;
+        } else {
+          width = Math.round((width / height) * MAX);
+          height = MAX;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = url;
+  });
+}
 
 interface LatLng {
   lat: number;
@@ -174,13 +203,23 @@ export default function RoutePlanner({
 
   async function confirmDelivery() {
     if (!deliveryModal) return;
-    await updateOrderStatus(
-      deliveryModal.orderId,
-      "delivered",
-      deliverPhoto || undefined,
-      deliverComment.trim() || undefined
-    );
-    await updateOrderPaymentStatus(deliveryModal.orderId, deliverPaid);
+    // Single API call with all fields at once
+    const auth = typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("ordering_auth") || "{}")
+      : {};
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (auth.user?.id) headers["X-User-Id"] = auth.user.id;
+
+    await fetch(`/api/orders/${encodeURIComponent(deliveryModal.orderId)}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        status: "delivered",
+        photoBase64: deliverPhoto || undefined,
+        deliveryComment: deliverComment.trim() || undefined,
+        paid: deliverPaid,
+      }),
+    });
     refreshDisplayOrders();
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -909,13 +948,19 @@ export default function RoutePlanner({
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = () =>
-                      setDeliverPhoto(reader.result as string);
-                    reader.readAsDataURL(file);
+                    try {
+                      const compressed = await compressImage(file);
+                      setDeliverPhoto(compressed);
+                    } catch {
+                      // Fallback: read raw
+                      const reader = new FileReader();
+                      reader.onload = () =>
+                        setDeliverPhoto(reader.result as string);
+                      reader.readAsDataURL(file);
+                    }
                   }}
                 />
               </label>
