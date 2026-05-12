@@ -1,6 +1,21 @@
 "use client";
 
-import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, Image, Font } from "@react-pdf/renderer";
+
+// Register Chinese font for CJK character support
+Font.register({
+  family: "NotoSansSC",
+  fonts: [
+    {
+      src: "/fonts/NotoSansSC-Regular.ttf",
+      fontWeight: 400,
+    },
+    {
+      src: "/fonts/NotoSansSC-Bold.ttf",
+      fontWeight: 700,
+    },
+  ],
+});
 
 interface PreformattedOrderRow {
   header: string;
@@ -66,7 +81,7 @@ function buildStaticMapUrl(
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 30, fontFamily: "Helvetica", fontSize: 9, color: "#1c1917" },
+  page: { padding: 30, fontFamily: "NotoSansSC", fontSize: 9, color: "#1c1917" },
   header: { marginBottom: 16, borderBottom: "2 solid #1c1917", paddingBottom: 10 },
   title: { fontSize: 20, fontWeight: "bold", marginBottom: 4 },
   subtitle: { fontSize: 10, color: "#57534e", marginBottom: 2 },
