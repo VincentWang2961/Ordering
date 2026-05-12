@@ -9,6 +9,8 @@ import {
 } from "../../../data/store";
 import OrderMap from "./OrderMap";
 import RouteMap from "./RouteMap";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import RoutePDF from "./RoutePDF";
 
 interface LatLng {
   lat: number;
@@ -349,6 +351,40 @@ export default function RoutePlanner({
     ? buildGoogleMapsUrl(routeResult.stops, true)
     : null;
 
+  const selectedOrders = routeResult
+    ? acceptedOrders.filter((o) => selectedIds.has(o.id))
+    : [];
+
+  // Build pre-formatted order rows for PDF (all strings, no JS in PDF)
+  const pdfRows = routeResult
+    ? routeResult.stops
+        .filter((stop, i) => {
+          if (i === 0 && restaurantLatLng) return false;
+          return true;
+        })
+        .map((stop) => {
+          const order = acceptedOrders.find((o) =>
+            stop.label.startsWith(`#${o.id}`)
+          );
+          const stopNum = routeResult.stops.indexOf(stop);
+          const items = order
+            ? order.items.map((item) => `${item.quantity}x ${item.name}`).join(", ")
+            : "";
+          return {
+            header: `#${order?.id || ""} — Stop ${stopNum}`,
+            phone: order?.contact || "",
+            address: stop.address,
+            lat: stop.lat,
+            lng: stop.lng,
+            items,
+            total: order ? `$${String(order.total.toFixed(2))}` : "",
+            payment: order?.paid ? "Paid ✓" : "Unpaid ✗",
+            paymentPaid: order?.paid || false,
+            notes: order?.notes || "",
+          };
+        })
+    : [];
+
   return (
     <div className="mt-8">
       <h2 className="text-2xl font-bold">{t("route.title")}</h2>
@@ -609,6 +645,49 @@ export default function RoutePlanner({
                 {t("route.navFromRestaurant")}
               </a>
             )}
+          </div>
+
+          {/* Export PDF */}
+          <div className="mt-4">
+            <PDFDownloadLink
+              document={
+                <RoutePDF
+                  rows={pdfRows}
+                  totalDistance={routeResult.totalDistance}
+                  totalDuration={routeResult.totalDuration}
+                  adjustedDuration={adjustedDuration || routeResult.totalDuration}
+                  adjustedDetail={adjustedDetail || ""}
+                  restaurantAddress={restaurantAddress}
+                  restaurantLatLng={restaurantLatLng}
+                  apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
+                  endAddress={endAddress || ""}
+                  orderCount={pdfRows.length}
+                />
+              }
+              fileName={`delivery-route-${new Date().toISOString().slice(0, 10)}.pdf`}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-stone-950 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-stone-800"
+            >
+              {({ loading: pdfLoading }) =>
+                pdfLoading ? (
+                  <>
+                    <svg className="h-5 w-5 shrink-0 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Generating PDF…
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Export PDF
+                  </>
+                )
+              }
+            </PDFDownloadLink>
           </div>
 
           {/* Route order list */}
