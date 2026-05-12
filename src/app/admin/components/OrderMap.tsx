@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   GoogleMap,
   InfoWindow,
@@ -40,7 +40,6 @@ export default function OrderMap({
     googleMapsApiKey: apiKey,
   });
 
-  const [map, setMap] = useState<google.maps.Map | null>(null);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [showRestaurantInfo, setShowRestaurantInfo] = useState(false);
 
@@ -84,14 +83,9 @@ export default function OrderMap({
   const onLoad = useCallback(
     (loadedMap: google.maps.Map) => {
       fitMapBounds(loadedMap);
-      setMap(loadedMap);
     },
     [fitMapBounds]
   );
-
-  useEffect(() => {
-    if (map) fitMapBounds(map);
-  }, [fitMapBounds, map]);
 
   const activeOrder = activeOrderId
     ? ordersWithCoords.find((order) => order.id === activeOrderId)
