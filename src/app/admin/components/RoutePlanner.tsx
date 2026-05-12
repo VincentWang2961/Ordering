@@ -355,6 +355,40 @@ export default function RoutePlanner({
     ? acceptedOrders.filter((o) => selectedIds.has(o.id))
     : [];
 
+  // Build stops with order data for PDF (match by label = #orderId)
+  const stopsWithOrders = routeResult
+    ? routeResult.stops
+        .filter((stop, i) => {
+          if (i === 0 && restaurantLatLng) return false;
+          return true;
+        })
+        .map((stop, i) => {
+          const order = selectedOrders.find((o) =>
+            stop.label.startsWith(`#${o.id}`)
+          );
+          return {
+            stop,
+            stopNum: restaurantLatLng
+              ? routeResult.stops.indexOf(stop)
+              : routeResult.stops.indexOf(stop),
+            order: order
+              ? {
+                  id: order.id,
+                  contact: order.contact,
+                  items: order.items.map((item) => ({
+                    quantity: item.quantity,
+                    name: item.name,
+                    price: item.price,
+                  })),
+                  total: order.total,
+                  paid: order.paid,
+                  notes: order.notes,
+                }
+              : null,
+          };
+        })
+    : [];
+
   return (
     <div className="mt-8">
       <h2 className="text-2xl font-bold">{t("route.title")}</h2>
@@ -622,14 +656,16 @@ export default function RoutePlanner({
             <PDFDownloadLink
               document={
                 <RoutePDF
-                  routeResult={routeResult}
-                  orders={selectedOrders}
+                  stopsWithOrders={stopsWithOrders}
+                  totalDistance={routeResult.totalDistance}
+                  totalDuration={routeResult.totalDuration}
+                  adjustedDuration={adjustedDuration || undefined}
+                  adjustedDetail={adjustedDetail || undefined}
                   restaurantAddress={restaurantAddress}
                   restaurantLatLng={restaurantLatLng}
                   apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
                   endAddress={endAddress || undefined}
-                  adjustedDuration={adjustedDuration || undefined}
-                  adjustedDetail={adjustedDetail || undefined}
+                  orderCount={stopsWithOrders.length}
                 />
               }
               fileName={`delivery-route-${new Date().toISOString().slice(0, 10)}.pdf`}
