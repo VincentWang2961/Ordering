@@ -2,55 +2,44 @@
 
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 
-interface RouteStop {
-  index: number;
+interface PreformattedOrderRow {
+  header: string;
+  phone: string;
   address: string;
   lat: number;
   lng: number;
-  label: string;
-}
-
-interface StopWithOrder {
-  stop: RouteStop;
-  stopNum: number;
-  order: {
-    id: string;
-    contact: string;
-    items: { quantity: number; name: string; price: number }[];
-    total: number;
-    paid: boolean;
-    notes: string;
-  } | null;
+  items: string;
+  total: string;
+  payment: string;
+  paymentPaid: boolean;
+  notes: string;
 }
 
 interface RoutePDFProps {
-  stopsWithOrders: StopWithOrder[];
+  rows: PreformattedOrderRow[];
   totalDistance: string;
   totalDuration: string;
-  adjustedDuration?: string;
-  adjustedDetail?: string;
+  adjustedDuration: string;
+  adjustedDetail: string;
   restaurantAddress: string;
   restaurantLatLng: { lat: number; lng: number } | null;
   apiKey: string;
-  endAddress?: string;
+  endAddress: string;
   orderCount: number;
 }
 
 function buildStaticMapUrl(
-  stops: RouteStop[],
+  rows: PreformattedOrderRow[],
   restaurantLatLng: { lat: number; lng: number } | null,
   apiKey: string
 ): string {
-  if (!stops.length) return "";
-
-  const allPoints = restaurantLatLng ? stops : stops;
+  const deliveryStops = rows.filter((r) => r.lat !== 0 || r.lng !== 0);
+  if (deliveryStops.length === 0 && !restaurantLatLng) return "";
 
   const params = new URLSearchParams();
   params.set("size", "640x300");
   params.set("maptype", "roadmap");
   params.set("key", apiKey);
-
-  // Let Google auto-fit: don't set center or zoom when markers/path are provided
 
   if (restaurantLatLng) {
     params.append(
@@ -59,13 +48,16 @@ function buildStaticMapUrl(
     );
   }
 
-  const deliveryStops = restaurantLatLng ? stops.slice(0) : stops.slice(1);
-  deliveryStops.forEach((stop, i) => {
+  deliveryStops.forEach((r, i) => {
     params.append(
       "markers",
-      `color:red|label:${String(i + 1)}|${stop.lat},${stop.lng}`
+      `color:red|label:${String(i + 1)}|${r.lat},${r.lng}`
     );
   });
+
+  const allPoints: { lat: number; lng: number }[] = [];
+  if (restaurantLatLng) allPoints.push(restaurantLatLng);
+  deliveryStops.forEach((r) => allPoints.push({ lat: r.lat, lng: r.lng }));
 
   const pathCoords = allPoints.map((s) => `${s.lat},${s.lng}`).join("|");
   params.append("path", `color:0xEA580CFF|weight:4|${pathCoords}`);
@@ -74,128 +66,30 @@ function buildStaticMapUrl(
 }
 
 const styles = StyleSheet.create({
-  page: {
-    padding: 30,
-    fontFamily: "Helvetica",
-    fontSize: 9,
-    color: "#1c1917",
-  },
-  header: {
-    marginBottom: 16,
-    borderBottom: "2 solid #1c1917",
-    paddingBottom: 10,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 10,
-    color: "#57534e",
-    marginBottom: 2,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 12,
-  },
-  summaryBox: {
-    flex: 1,
-    padding: 8,
-    backgroundColor: "#ecfdf5",
-    borderRadius: 4,
-  },
-  summaryLabel: {
-    fontSize: 7,
-    fontWeight: "bold",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    color: "#047857",
-    marginBottom: 2,
-  },
-  summaryValue: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#064e3b",
-  },
-  summaryDetail: {
-    fontSize: 7,
-    color: "#059669",
-    marginTop: 2,
-  },
-  mapImage: {
-    width: "100%",
-    height: 200,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: "bold",
-    marginBottom: 10,
-    borderBottom: "1 solid #d6d3d1",
-    paddingBottom: 4,
-  },
-  orderGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  orderCard: {
-    width: "48%",
-    padding: 8,
-    border: "1 solid #d6d3d1",
-    marginBottom: 4,
-  },
-  orderHeader: {
-    fontSize: 10,
-    fontWeight: "bold",
-    marginBottom: 4,
-    color: "#1c1917",
-  },
-  orderRow: {
-    flexDirection: "row",
-    marginBottom: 1,
-  },
-  orderLabel: {
-    width: 40,
-    color: "#78716c",
-    fontSize: 7,
-    fontWeight: "bold",
-    textTransform: "uppercase",
-  },
-  orderValue: {
-    flex: 1,
-    fontSize: 7,
-    color: "#44403c",
-  },
-  orderValuePaid: {
-    flex: 1,
-    fontSize: 7,
-    color: "#059669",
-    fontWeight: "bold",
-  },
-  orderValueUnpaid: {
-    flex: 1,
-    fontSize: 7,
-    color: "#d97706",
-    fontWeight: "bold",
-  },
-  footer: {
-    position: "absolute",
-    bottom: 20,
-    left: 30,
-    right: 30,
-    textAlign: "center",
-    fontSize: 7,
-    color: "#a8a29e",
-    borderTop: "1 solid #e7e5e4",
-    paddingTop: 8,
-  },
+  page: { padding: 30, fontFamily: "Helvetica", fontSize: 9, color: "#1c1917" },
+  header: { marginBottom: 16, borderBottom: "2 solid #1c1917", paddingBottom: 10 },
+  title: { fontSize: 20, fontWeight: "bold", marginBottom: 4 },
+  subtitle: { fontSize: 10, color: "#57534e", marginBottom: 2 },
+  summaryRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
+  summaryBox: { flex: 1, padding: 8, backgroundColor: "#ecfdf5" },
+  summaryLabel: { fontSize: 7, fontWeight: "bold", textTransform: "uppercase", letterSpacing: 1, color: "#047857", marginBottom: 2 },
+  summaryValue: { fontSize: 12, fontWeight: "bold", color: "#064e3b" },
+  summaryDetail: { fontSize: 7, color: "#059669", marginTop: 2 },
+  mapImage: { width: "100%", height: 200, marginBottom: 16 },
+  sectionTitle: { fontSize: 13, fontWeight: "bold", marginBottom: 10, borderBottom: "1 solid #d6d3d1", paddingBottom: 4 },
+  orderGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  orderCard: { width: "48%", padding: 8, border: "1 solid #d6d3d1", marginBottom: 4 },
+  orderHeader: { fontSize: 10, fontWeight: "bold", marginBottom: 4, color: "#1c1917" },
+  orderRow: { flexDirection: "row", marginBottom: 1 },
+  orderLabel: { width: 40, color: "#78716c", fontSize: 7, fontWeight: "bold", textTransform: "uppercase" },
+  orderValue: { flex: 1, fontSize: 7, color: "#44403c" },
+  orderValuePaid: { flex: 1, fontSize: 7, color: "#059669", fontWeight: "bold" },
+  orderValueUnpaid: { flex: 1, fontSize: 7, color: "#d97706", fontWeight: "bold" },
+  footer: { position: "absolute", bottom: 20, left: 30, right: 30, textAlign: "center", fontSize: 7, color: "#a8a29e", borderTop: "1 solid #e7e5e4", paddingTop: 8 },
 });
 
 export default function RoutePDF({
-  stopsWithOrders,
+  rows,
   totalDistance,
   totalDuration,
   adjustedDuration,
@@ -206,31 +100,18 @@ export default function RoutePDF({
   endAddress,
   orderCount,
 }: RoutePDFProps) {
-  const stops = stopsWithOrders.map((swo) => swo.stop);
-  const staticMapUrl = buildStaticMapUrl(stops, restaurantLatLng, apiKey);
-
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Delivery Route Plan</Text>
           <Text style={styles.subtitle}>Restaurant: {restaurantAddress}</Text>
-          {endAddress && <Text style={styles.subtitle}>Ends at: {endAddress}</Text>}
+          {endAddress ? <Text style={styles.subtitle}>Ends at: {endAddress}</Text> : null}
           <Text style={styles.subtitle}>
-            Generated:{" "}
-            {new Date().toLocaleDateString("en-AU", {
-              weekday: "short",
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            Generated: {new Date().toLocaleDateString("en-AU", { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
           </Text>
         </View>
 
-        {/* Summary */}
         <View style={styles.summaryRow}>
           <View style={styles.summaryBox}>
             <Text style={styles.summaryLabel}>Distance</Text>
@@ -242,84 +123,55 @@ export default function RoutePDF({
           </View>
           <View style={styles.summaryBox}>
             <Text style={styles.summaryLabel}>Total Time</Text>
-            <Text style={styles.summaryValue}>{adjustedDuration || totalDuration}</Text>
-            {adjustedDetail && <Text style={styles.summaryDetail}>{adjustedDetail}</Text>}
+            <Text style={styles.summaryValue}>{adjustedDuration}</Text>
+            {adjustedDetail ? <Text style={styles.summaryDetail}>{adjustedDetail}</Text> : null}
           </View>
         </View>
 
-        {/* Static Map */}
-        {staticMapUrl && <Image src={staticMapUrl} style={styles.mapImage} />}
+        {apiKey ? <Image src={buildStaticMapUrl(rows, restaurantLatLng, apiKey)} style={styles.mapImage} /> : null}
 
-        {/* Order List — start on a fresh page */}
         <Text style={styles.sectionTitle} break>
           Delivery Orders ({orderCount})
         </Text>
 
         <View style={styles.orderGrid}>
-          {stopsWithOrders.map((swo) => {
-            const order = swo.order;
-            return (
-              <View key={swo.stop.index} style={styles.orderCard} wrap={false}>
-                <Text style={styles.orderHeader}>
-                  #{order?.id || swo.stop.label} — Stop {swo.stopNum}
-                </Text>
-
-                <View style={styles.orderRow}>
-                  <Text style={styles.orderLabel}>Phone</Text>
-                  <Text style={styles.orderValue}>{order?.contact || "—"}</Text>
-                </View>
-
-                <View style={styles.orderRow}>
-                  <Text style={styles.orderLabel}>Address</Text>
-                  <Text style={styles.orderValue}>{swo.stop.address}</Text>
-                </View>
-
-                {order && (
-                  <View style={styles.orderRow}>
-                    <Text style={styles.orderLabel}>Items</Text>
-                    <Text style={styles.orderValue}>
-                      {order.items
-                        .map((item) => `${item.quantity}x ${item.name}`)
-                        .join(", ")}
-                    </Text>
-                  </View>
-                )}
-
-                <View style={styles.orderRow}>
-                  <Text style={styles.orderLabel}>Total</Text>
-                  <Text style={styles.orderValue}>
-                    ${order?.total.toFixed(2) || "—"}
-                  </Text>
-                </View>
-
-                <View style={styles.orderRow}>
-                  <Text style={styles.orderLabel}>Payment</Text>
-                  <Text
-                    style={
-                      order?.paid
-                        ? styles.orderValuePaid
-                        : styles.orderValueUnpaid
-                    }
-                  >
-                    {order?.paid ? "Paid ✓" : "Unpaid ✗"}
-                  </Text>
-                </View>
-
-                {order?.notes && (
-                  <View style={styles.orderRow}>
-                    <Text style={styles.orderLabel}>Notes</Text>
-                    <Text style={styles.orderValue}>{order.notes}</Text>
-                  </View>
-                )}
+          {rows.map((row, idx) => (
+            <View key={idx} style={styles.orderCard} wrap={false}>
+              <Text style={styles.orderHeader}>{row.header}</Text>
+              <View style={styles.orderRow}>
+                <Text style={styles.orderLabel}>Phone</Text>
+                <Text style={styles.orderValue}>{row.phone}</Text>
               </View>
-            );
-          })}
+              <View style={styles.orderRow}>
+                <Text style={styles.orderLabel}>Address</Text>
+                <Text style={styles.orderValue}>{row.address}</Text>
+              </View>
+              <View style={styles.orderRow}>
+                <Text style={styles.orderLabel}>Items</Text>
+                <Text style={styles.orderValue}>{row.items}</Text>
+              </View>
+              <View style={styles.orderRow}>
+                <Text style={styles.orderLabel}>Total</Text>
+                <Text style={styles.orderValue}>{row.total}</Text>
+              </View>
+              <View style={styles.orderRow}>
+                <Text style={styles.orderLabel}>Payment</Text>
+                <Text style={row.paymentPaid ? styles.orderValuePaid : styles.orderValueUnpaid}>
+                  {row.payment}
+                </Text>
+              </View>
+              {row.notes ? (
+                <View style={styles.orderRow}>
+                  <Text style={styles.orderLabel}>Notes</Text>
+                  <Text style={styles.orderValue}>{row.notes}</Text>
+                </View>
+              ) : null}
+            </View>
+          ))}
         </View>
 
-        {/* Footer */}
         <Text style={styles.footer}>
-          Generated by Ordering System —{" "}
-          {new Date().toLocaleDateString("en-AU")}
+          Generated by Ordering System — {new Date().toLocaleDateString("en-AU")}
         </Text>
       </Page>
     </Document>

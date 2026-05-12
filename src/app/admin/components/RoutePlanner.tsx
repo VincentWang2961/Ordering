@@ -355,36 +355,32 @@ export default function RoutePlanner({
     ? acceptedOrders.filter((o) => selectedIds.has(o.id))
     : [];
 
-  // Build stops with order data for PDF (match by label = #orderId)
-  const stopsWithOrders = routeResult
+  // Build pre-formatted order rows for PDF (all strings, no JS in PDF)
+  const pdfRows = routeResult
     ? routeResult.stops
         .filter((stop, i) => {
           if (i === 0 && restaurantLatLng) return false;
           return true;
         })
-        .map((stop, i) => {
-          const order = selectedOrders.find((o) =>
+        .map((stop) => {
+          const order = acceptedOrders.find((o) =>
             stop.label.startsWith(`#${o.id}`)
           );
+          const stopNum = routeResult.stops.indexOf(stop);
+          const items = order
+            ? order.items.map((item) => `${item.quantity}x ${item.name}`).join(", ")
+            : "";
           return {
-            stop,
-            stopNum: restaurantLatLng
-              ? routeResult.stops.indexOf(stop)
-              : routeResult.stops.indexOf(stop),
-            order: order
-              ? {
-                  id: order.id,
-                  contact: order.contact,
-                  items: order.items.map((item) => ({
-                    quantity: item.quantity,
-                    name: item.name,
-                    price: item.price,
-                  })),
-                  total: order.total,
-                  paid: order.paid,
-                  notes: order.notes,
-                }
-              : null,
+            header: `#${order?.id || ""} — Stop ${stopNum}`,
+            phone: order?.contact || "",
+            address: stop.address,
+            lat: stop.lat,
+            lng: stop.lng,
+            items,
+            total: order ? `$${String(order.total.toFixed(2))}` : "",
+            payment: order?.paid ? "Paid ✓" : "Unpaid ✗",
+            paymentPaid: order?.paid || false,
+            notes: order?.notes || "",
           };
         })
     : [];
@@ -656,16 +652,16 @@ export default function RoutePlanner({
             <PDFDownloadLink
               document={
                 <RoutePDF
-                  stopsWithOrders={stopsWithOrders}
+                  rows={pdfRows}
                   totalDistance={routeResult.totalDistance}
                   totalDuration={routeResult.totalDuration}
-                  adjustedDuration={adjustedDuration || undefined}
-                  adjustedDetail={adjustedDetail || undefined}
+                  adjustedDuration={adjustedDuration || routeResult.totalDuration}
+                  adjustedDetail={adjustedDetail || ""}
                   restaurantAddress={restaurantAddress}
                   restaurantLatLng={restaurantLatLng}
                   apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
-                  endAddress={endAddress || undefined}
-                  orderCount={stopsWithOrders.length}
+                  endAddress={endAddress || ""}
+                  orderCount={pdfRows.length}
                 />
               }
               fileName={`delivery-route-${new Date().toISOString().slice(0, 10)}.pdf`}
